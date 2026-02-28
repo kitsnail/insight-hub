@@ -150,6 +150,14 @@ func Load(configPath string) (*Config, error) {
 		cfg.Database.SSLMode = sslmode
 	}
 
+	// Docker 环境变量覆盖服务器配置
+	if host := os.Getenv("SERVER_HOST"); host != "" {
+		cfg.Server.Host = host
+	}
+	if port := os.Getenv("SERVER_PORT"); port != "" {
+		fmt.Sscanf(port, "%d", &cfg.Server.Port)
+	}
+
 	// 展开 ~ 路径
 	cfg.Storage.DataDir = expandPath(cfg.Storage.DataDir)
 

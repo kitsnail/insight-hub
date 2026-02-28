@@ -12,6 +12,7 @@ services:
       - "8090:8090"
     environment:
       - TZ=Asia/Shanghai
+      - SERVER_HOST=0.0.0.0
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=insight
