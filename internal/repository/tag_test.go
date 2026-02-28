@@ -159,3 +159,125 @@ func TestTagRepository_Delete(t *testing.T) {
 		t.Error("Tag should be deleted")
 	}
 }
+
+func TestTagRepository_Update(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewTagRepository(db)
+
+	// 创建测试数据
+	tag := &model.Tag{Name: "original", Category: "test", Color: "#000000"}
+	if err := repo.Create(tag); err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	// 更新
+	tag.Name = "updated"
+	tag.Category = "new-category"
+	tag.Color = "#FFFFFF"
+	if err := repo.Update(tag); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// 验证
+	got, _ := repo.GetByID(tag.ID)
+	if got.Name != "updated" {
+		t.Errorf("Name not updated: got %s", got.Name)
+	}
+	if got.Category != "new-category" {
+		t.Errorf("Category not updated: got %s", got.Category)
+	}
+	if got.Color != "#FFFFFF" {
+		t.Errorf("Color not updated: got %s", got.Color)
+	}
+}
+
+func TestTagRepository_GetItemCounts(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	itemRepo := NewItemRepository(db)
+	tagRepo := NewTagRepository(db)
+
+	// 创建标签
+	tag1 := &model.Tag{Name: "count-test-1"}
+	tag2 := &model.Tag{Name: "count-test-2"}
+	tag3 := &model.Tag{Name: "count-test-3"}
+	tagRepo.Create(tag1)
+	tagRepo.Create(tag2)
+	tagRepo.Create(tag3)
+
+	// 创建 items 并关联标签
+	item1 := &model.Item{
+		ID:      "count-item-1",
+		Type:    model.ItemTypeNote,
+		Title:   "Test 1",
+		Source:  "manual",
+		Tags:    []model.Tag{*tag1, *tag2},
+	}
+	item2 := &model.Item{
+		ID:      "count-item-2",
+		Type:    model.ItemTypeNote,
+		Title:   "Test 2",
+		Source:  "manual",
+		Tags:    []model.Tag{*tag1},
+	}
+	itemRepo.Create(item1)
+	itemRepo.Create(item2)
+	// tag3 没有关联任何 item
+
+	// 获取数量
+	counts, err := tagRepo.GetItemCounts()
+	if err != nil {
+		t.Fatalf("GetItemCounts failed: %v", err)
+	}
+
+	if counts[tag1.ID] != 2 {
+		t.Errorf("tag1 should have 2 items, got %d", counts[tag1.ID])
+	}
+	if counts[tag2.ID] != 1 {
+		t.Errorf("tag2 should have 1 item, got %d", counts[tag2.ID])
+	}
+	if counts[tag3.ID] != 0 {
+		t.Errorf("tag3 should have 0 items, got %d", counts[tag3.ID])
+	}
+}
+
+func TestTagRepository_GetByName_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewTagRepository(db)
+
+	_, err := repo.GetByName("non-existent")
+	if err == nil {
+		t.Error("Expected error for non-existent tag")
+	}
+}
+
+func TestTagRepository_GetByID_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewTagRepository(db)
+
+	_, err := repo.GetByID(99999)
+	if err == nil {
+		t.Error("Expected error for non-existent tag")
+	}
+}
+
+func TestTagRepository_Delete_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewTagRepository(db)
+
+	// 删除不存在的标签应该不报错（或报错，取决于实现）
+	err := repo.Delete(99999)
+	// SQLite DELETE 不存在的记录不会报错
+	if err != nil {
+		t.Logf("Delete non-existent returned error: %v", err)
+	}
+}

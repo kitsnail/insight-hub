@@ -232,3 +232,171 @@ func TestItemRepository_Search(t *testing.T) {
 		t.Errorf("Expected at least 2 results, got %d", len(results))
 	}
 }
+
+func TestItemRepository_SetItemTags(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	itemRepo := NewItemRepository(db)
+	tagRepo := NewTagRepository(db)
+
+	// 创建 item
+	item := &model.Item{
+		ID:      "tag-test-1",
+		Type:    model.ItemTypeNote,
+		Title:   "Test",
+		Content: "Content",
+		Source:  "manual",
+	}
+	if err := itemRepo.Create(item); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// 创建标签
+	tag1 := &model.Tag{Name: "tag1"}
+	tag2 := &model.Tag{Name: "tag2"}
+	tag3 := &model.Tag{Name: "tag3"}
+	tagRepo.Create(tag1)
+	tagRepo.Create(tag2)
+	tagRepo.Create(tag3)
+
+	// 设置标签
+	err := itemRepo.SetItemTags("tag-test-1", []int64{tag1.ID, tag2.ID})
+	if err != nil {
+		t.Fatalf("SetItemTags failed: %v", err)
+	}
+
+	// 验证
+	got, _ := itemRepo.GetByID("tag-test-1")
+	if len(got.Tags) != 2 {
+		t.Errorf("Expected 2 tags, got %d", len(got.Tags))
+	}
+
+	// 替换标签
+	err = itemRepo.SetItemTags("tag-test-1", []int64{tag3.ID})
+	if err != nil {
+		t.Fatalf("SetItemTags (replace) failed: %v", err)
+	}
+
+	got, _ = itemRepo.GetByID("tag-test-1")
+	if len(got.Tags) != 1 {
+		t.Errorf("Expected 1 tag after replace, got %d", len(got.Tags))
+	}
+	if got.Tags[0].Name != "tag3" {
+		t.Errorf("Tag should be tag3, got %s", got.Tags[0].Name)
+	}
+}
+
+func TestItemRepository_RemoveItemTag(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	itemRepo := NewItemRepository(db)
+	tagRepo := NewTagRepository(db)
+
+	// 创建 item 带标签
+	tag1 := &model.Tag{Name: "remove-test-1"}
+	tag2 := &model.Tag{Name: "remove-test-2"}
+	tagRepo.Create(tag1)
+	tagRepo.Create(tag2)
+
+	item := &model.Item{
+		ID:      "remove-tag-test",
+		Type:    model.ItemTypeNote,
+		Title:   "Test",
+		Content: "Content",
+		Source:  "manual",
+		Tags:    []model.Tag{*tag1, *tag2},
+	}
+	if err := itemRepo.Create(item); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// 移除一个标签
+	err := itemRepo.RemoveItemTag("remove-tag-test", tag1.ID)
+	if err != nil {
+		t.Fatalf("RemoveItemTag failed: %v", err)
+	}
+
+	// 验证只剩一个标签
+	got, _ := itemRepo.GetByID("remove-tag-test")
+	if len(got.Tags) != 1 {
+		t.Errorf("Expected 1 tag after removal, got %d", len(got.Tags))
+	}
+	if got.Tags[0].Name != "remove-test-2" {
+		t.Errorf("Wrong tag remaining: got %s", got.Tags[0].Name)
+	}
+}
+
+func TestItemRepository_List_ByType(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewItemRepository(db)
+
+	// 创建不同类型的 items
+	repo.Create(&model.Item{ID: "type-1", Type: model.ItemTypeNote, Title: "Note", Source: "manual"})
+	repo.Create(&model.Item{ID: "type-2", Type: model.ItemTypeNote, Title: "Note 2", Source: "manual"})
+	repo.Create(&model.Item{ID: "type-3", Type: model.ItemTypeTask, Title: "Task", Source: "manual"})
+
+	// 按类型过滤
+	items, total, err := repo.List(10, 0, model.ItemTypeNote, "")
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if total != 2 {
+		t.Errorf("Expected 2 notes, got %d", total)
+	}
+	if len(items) != 2 {
+		t.Errorf("Expected 2 items, got %d", len(items))
+	}
+}
+
+func TestItemRepository_List_ByStatus(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewItemRepository(db)
+
+	// 创建 items
+	repo.Create(&model.Item{ID: "status-1", Type: model.ItemTypeNote, Title: "Active", Source: "manual"})
+	repo.Create(&model.Item{ID: "status-2", Type: model.ItemTypeNote, Title: "Deleted", Source: "manual", Status: model.ItemStatusDeleted})
+
+	// 按状态过滤
+	_, total, err := repo.List(10, 0, "", model.ItemStatusActive)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("Expected 1 active item, got %d", total)
+	}
+}
+
+func TestItemRepository_Search_ExcludeDeleted(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewItemRepository(db)
+
+	// 创建 items
+	item1 := &model.Item{ID: "search-del-1", Type: model.ItemTypeNote, Title: "Go Active", Content: "Go content", Source: "manual"}
+	item2 := &model.Item{ID: "search-del-2", Type: model.ItemTypeNote, Title: "Go Deleted", Content: "Go deleted", Source: "manual", Status: model.ItemStatusDeleted}
+	repo.Create(item1)
+	repo.Create(item2)
+	repo.UpdateFTS(item1)
+	repo.UpdateFTS(item2)
+
+	// 搜索应该排除已删除的
+	results, err := repo.Search("Go", 10)
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+
+	for _, item := range results {
+		if item.Status == model.ItemStatusDeleted {
+			t.Error("Search should not return deleted items")
+		}
+	}
+}
