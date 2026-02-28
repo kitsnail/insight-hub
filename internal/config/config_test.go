@@ -9,8 +9,8 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.Server.Port != 8080 {
-		t.Errorf("Default port should be 8080, got %d", cfg.Server.Port)
+	if cfg.Server.Port != 8090 {
+		t.Errorf("Default port should be 8090, got %d", cfg.Server.Port)
 	}
 	if cfg.Server.Host != "127.0.0.1" {
 		t.Errorf("Default host should be 127.0.0.1, got %s", cfg.Server.Host)
@@ -24,6 +24,12 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Log.Level != "info" {
 		t.Errorf("Default log level should be info, got %s", cfg.Log.Level)
 	}
+	if cfg.Database.Host != "localhost" {
+		t.Errorf("Default database host should be localhost, got %s", cfg.Database.Host)
+	}
+	if cfg.Database.Port != 5433 {
+		t.Errorf("Default database port should be 5433, got %d", cfg.Database.Port)
+	}
 }
 
 func TestLoad_NonExistent(t *testing.T) {
@@ -33,7 +39,7 @@ func TestLoad_NonExistent(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if cfg.Server.Port != 8080 {
+	if cfg.Server.Port != 8090 {
 		t.Error("Should return default config when file not found")
 	}
 }

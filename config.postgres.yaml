@@ -1,0 +1,56 @@
+# Insight Hub PostgreSQL 配置文件示例
+# 复制此文件到 ~/.insight-hub/config.yaml 并修改
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 8090
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5433
+  name: "insight_hub"
+  user: "insight"
+  password: "insight_local_dev"
+  sslmode: "disable"
+  # 连接池
+  max_conns: 10
+  min_conns: 2
+  max_conn_lifetime: "1h"
+  max_conn_idle_time: "10m"
+
+# 存储配置（用于文件存储）
+storage:
+  data_dir: "~/.insight-hub"
+
+# LLM 配置
+llm:
+  provider: "openai"
+  api_key: "${INSIGHT_HUB_LLM_API_KEY}"
+  model: "gpt-4o-mini"
+  base_url: ""
+
+# Agent 配置
+agents:
+  - name: news
+    enabled: true
+    dedup_ttl: "168h"  # 7天
+  - name: tech-doc
+    enabled: true
+    dedup_ttl: "168h"
+
+# 搜索配置
+search:
+  language: "english"
+  default_limit: 100
+
+# 定时任务
+scheduler:
+  dedup_cleanup: "0 3 * * *"  # 每天凌晨3点清理过期去重记录
+
+# 日志配置
+log:
+  level: "info"
+  format: "json"
+  output: "stdout"

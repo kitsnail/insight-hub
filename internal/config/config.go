@@ -11,10 +11,25 @@ import (
 
 // Config 应用配置
 type Config struct {
-	Server  ServerConfig  `yaml:"server"`
-	Storage StorageConfig `yaml:"storage"`
-	LLM     LLMConfig     `yaml:"llm"`
-	Log     LogConfig     `yaml:"log"`
+	Server   ServerConfig   `yaml:"server"`
+	Database DatabaseConfig `yaml:"database"`
+	Storage  StorageConfig  `yaml:"storage"`
+	LLM      LLMConfig      `yaml:"llm"`
+	Log      LogConfig      `yaml:"log"`
+}
+
+// DatabaseConfig 数据库配置
+type DatabaseConfig struct {
+	Host            string `yaml:"host"`
+	Port            int    `yaml:"port"`
+	Name            string `yaml:"name"`
+	User            string `yaml:"user"`
+	Password        string `yaml:"password"`
+	SSLMode         string `yaml:"sslmode"`
+	MaxConns        int32  `yaml:"max_conns"`
+	MinConns        int32  `yaml:"min_conns"`
+	MaxConnLifetime string `yaml:"max_conn_lifetime"`
+	MaxConnIdleTime string `yaml:"max_conn_idle_time"`
 }
 
 // ServerConfig 服务器配置
@@ -46,11 +61,23 @@ type LogConfig struct {
 // DefaultConfig 返回默认配置
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
-	
+
 	return &Config{
 		Server: ServerConfig{
 			Host: "127.0.0.1",
-			Port: 8080,
+			Port: 8090,
+		},
+		Database: DatabaseConfig{
+			Host:            "localhost",
+			Port:            5433,
+			Name:            "insight_hub",
+			User:            "insight",
+			Password:        "insight_local_dev",
+			SSLMode:         "disable",
+			MaxConns:        10,
+			MinConns:        2,
+			MaxConnLifetime: "1h",
+			MaxConnIdleTime: "10m",
 		},
 		Storage: StorageConfig{
 			DataDir: filepath.Join(homeDir, ".insight-hub"),
@@ -101,6 +128,26 @@ func Load(configPath string) (*Config, error) {
 	// 环境变量覆盖
 	if dataDir := os.Getenv("INSIGHT_HUB_DATA_DIR"); dataDir != "" {
 		cfg.Storage.DataDir = dataDir
+	}
+
+	// Docker 环境变量覆盖数据库配置
+	if host := os.Getenv("DB_HOST"); host != "" {
+		cfg.Database.Host = host
+	}
+	if port := os.Getenv("DB_PORT"); port != "" {
+		fmt.Sscanf(port, "%d", &cfg.Database.Port)
+	}
+	if user := os.Getenv("DB_USER"); user != "" {
+		cfg.Database.User = user
+	}
+	if password := os.Getenv("DB_PASSWORD"); password != "" {
+		cfg.Database.Password = password
+	}
+	if name := os.Getenv("DB_NAME"); name != "" {
+		cfg.Database.Name = name
+	}
+	if sslmode := os.Getenv("DB_SSLMODE"); sslmode != "" {
+		cfg.Database.SSLMode = sslmode
 	}
 
 	// 展开 ~ 路径

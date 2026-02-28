@@ -29,6 +29,12 @@ coverage.html
 *.db-wal
 *.db-shm
 
+# PostgreSQL 数据
+pg_data/
+pgadmin_data/
+deploy/postgres/pg_data/
+deploy/postgres/pgadmin_data/
+
 # 日志
 *.log
 logs/

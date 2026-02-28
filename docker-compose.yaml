@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # API 服务
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: insight-hub-api
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - TZ=Asia/Shanghai
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=insight
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-insight_local_dev}
+      - DB_NAME=insight_hub
+    volumes:
+      - /Users/wh/.insight-hub/data/api:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:17.9
+    container_name: insight-hub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: insight_hub
+      POSTGRES_USER: insight
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insight_local_dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /Users/wh/.insight-hub/data/postgres:/var/lib/postgresql/data
+      - /Users/wh/.insight-hub/logs/postgres:/var/log/postgresql
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insight -d insight_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: insight-hub-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@insight-hub.local
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    volumes:
+      - /Users/wh/.insight-hub/pgadmin:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - admin
+
+networks:
+  default:
+    name: insight-hub-network

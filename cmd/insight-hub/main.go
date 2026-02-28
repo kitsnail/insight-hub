@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -8,11 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kitsnail/insight-hub/internal/api"
 	"github.com/kitsnail/insight-hub/internal/config"
 	"github.com/kitsnail/insight-hub/internal/repository"
-	"github.com/kitsnail/insight-hub/internal/service"
 )
 
 var (
@@ -43,28 +44,34 @@ func main() {
 	log.Printf("数据目录: %s", cfg.Storage.DataDir)
 	log.Printf("监听地址: %s:%d", cfg.Server.Host, cfg.Server.Port)
 
-	// 初始化数据库
-	db, err := repository.NewDatabase(cfg.Storage.DataDir)
-	if err != nil {
-		log.Fatalf("初始化数据库失败: %v", err)
+	// 初始化 PostgreSQL
+	if cfg.Database.Name == "" {
+		log.Fatalf("请配置 PostgreSQL 数据库")
 	}
-	defer db.Close()
 
-	log.Printf("数据库初始化完成")
+	log.Printf("连接 PostgreSQL: %s@%s:%d/%s", cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
+	pgDB, err := repository.NewPostgresDB(&cfg.Database)
+	if err != nil {
+		log.Fatalf("初始化 PostgreSQL 失败: %v", err)
+	}
+	defer pgDB.Close()
+
+	log.Printf("PostgreSQL 连接成功")
 
 	// 初始化 Repositories
-	itemRepo := repository.NewItemRepository(db)
-	tagRepo := repository.NewTagRepository(db)
-
-	// 初始化 Services
-	itemSvc := service.NewItemService(itemRepo, tagRepo)
-	tagSvc := service.NewTagService(tagRepo)
-
-	// 初始化 API Handler
-	handler := api.NewHandler(itemSvc, tagSvc)
+	itemRepo := repository.NewItemRepoV3(pgDB.Pool)
+	tagRepo := repository.NewTagRepoPG(pgDB.Pool)
+	taskRepo := repository.NewTaskRepoPG(pgDB.Pool)
 
 	// 创建路由
 	mux := http.NewServeMux()
+
+	// 注册 v3 API (新版统一 API)
+	handlerV3 := api.NewHandlerV3(itemRepo)
+	handlerV3.RegisterRoutes(mux)
+
+	// 注册 v2 API (兼容旧版)
+	handler := api.NewHandler(itemRepo, tagRepo, taskRepo)
 	handler.RegisterRoutes(mux)
 
 	// 静态文件服务（Web UI）
@@ -88,7 +95,11 @@ func main() {
 		<-sigChan
 
 		log.Println("正在关闭...")
-		server.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		server.Shutdown(ctx)
 	}()
 
 	log.Printf("服务器启动: http://%s", addr)

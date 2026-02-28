@@ -1,0 +1,599 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/kitsnail/insight-hub/internal/model"
+)
+
+// ItemRepoPG Item 仓储 (PostgreSQL 版本)
+type ItemRepoPG struct {
+	pool *pgxpool.Pool
+}
+
+// NewItemRepoPG 创建 Item 仓储
+func NewItemRepoPG(pool *pgxpool.Pool) *ItemRepoPG {
+	return &ItemRepoPG{pool: pool}
+}
+
+// Create 创建 Item
+func (r *ItemRepoPG) Create(ctx context.Context, item *model.Item) error {
+	now := time.Now()
+	item.CreatedAt = now
+	item.UpdatedAt = now
+	if item.Status == "" {
+		item.Status = model.ItemStatusActive
+	}
+	if item.Agent == "" {
+		item.Agent = model.AgentUnknown
+	}
+
+	// 处理 JSONB 字段
+	var sourceMetadata interface{}
+	if item.SourceMetadata != nil {
+		sourceMetadata = item.SourceMetadata
+	}
+
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO items (id, type, agent, title, content, summary, source, source_url, source_metadata, occurred_at, created_at, updated_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`, item.ID, item.Type, item.Agent, item.Title, item.Content, item.Summary, item.Source, item.SourceURL, sourceMetadata, item.OccurredAt, item.CreatedAt, item.UpdatedAt, item.Status)
+	if err != nil {
+		return err
+	}
+
+	// 处理标签关联
+	if len(item.Tags) > 0 {
+		for _, tag := range item.Tags {
+			if err := r.addItemTag(ctx, item.ID, tag.ID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetByID 根据 ID 获取 Item
+func (r *ItemRepoPG) GetByID(ctx context.Context, id string) (*model.Item, error) {
+	item := &model.Item{}
+	var occurredAt sql.NullTime
+	var sourceURL sql.NullString
+	var sourceMetadata []byte
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, type, agent, title, content, summary, source, source_url, source_metadata, occurred_at, created_at, updated_at, status
+		FROM items WHERE id = $1
+	`, id).Scan(
+		&item.ID, &item.Type, &item.Agent, &item.Title, &item.Content, &item.Summary, &item.Source,
+		&sourceURL, &sourceMetadata, &occurredAt,
+		&item.CreatedAt, &item.UpdatedAt, &item.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	item.SourceURL = sourceURL.String
+	if len(sourceMetadata) > 0 {
+		if err := json.Unmarshal(sourceMetadata, &item.SourceMetadata); err != nil {
+			// 如果解析失败，保持为 nil
+			item.SourceMetadata = nil
+		}
+	}
+	if occurredAt.Valid {
+		item.OccurredAt = &occurredAt.Time
+	}
+
+	// 加载标签
+	tags, err := r.getItemTags(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	item.Tags = tags
+
+	return item, nil
+}
+
+// List 列出 Items
+func (r *ItemRepoPG) List(ctx context.Context, limit, offset int, itemType model.ItemType, status model.ItemStatus) ([]*model.Item, int, error) {
+	// 构建查询
+	query := "FROM items WHERE 1=1"
+	args := []interface{}{}
+	argIdx := 1
+
+	if itemType != "" {
+		query += fmt.Sprintf(" AND type = $%d", argIdx)
+		args = append(args, itemType)
+		argIdx++
+	}
+	if status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	// 获取总数
+	var total int
+	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) "+query, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 获取列表
+	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	rows, err := r.pool.Query(ctx, "SELECT id, type, agent, title, content, summary, source, source_url, occurred_at, created_at, updated_at, status "+query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	items := []*model.Item{}
+	for rows.Next() {
+		item := &model.Item{}
+		var occurredAt sql.NullTime
+		var sourceURL sql.NullString
+
+		err := rows.Scan(
+			&item.ID, &item.Type, &item.Agent, &item.Title, &item.Content, &item.Summary, &item.Source,
+			&sourceURL, &occurredAt,
+			&item.CreatedAt, &item.UpdatedAt, &item.Status,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		item.SourceURL = sourceURL.String
+		if occurredAt.Valid {
+			item.OccurredAt = &occurredAt.Time
+		}
+
+		items = append(items, item)
+	}
+
+	return items, total, nil
+}
+
+// Update 更新 Item
+func (r *ItemRepoPG) Update(ctx context.Context, item *model.Item) error {
+	item.UpdatedAt = time.Now()
+
+	// 处理 JSONB 字段
+	var sourceMetadata interface{}
+	if item.SourceMetadata != nil {
+		sourceMetadata = item.SourceMetadata
+	}
+
+	_, err := r.pool.Exec(ctx, `
+		UPDATE items SET type = $1, agent = $2, title = $3, content = $4, summary = $5, source = $6, source_url = $7, source_metadata = $8, occurred_at = $9, updated_at = $10, status = $11
+		WHERE id = $12
+	`, item.Type, item.Agent, item.Title, item.Content, item.Summary, item.Source, item.SourceURL, sourceMetadata, item.OccurredAt, item.UpdatedAt, item.Status, item.ID)
+	return err
+}
+
+// Delete 软删除 Item
+func (r *ItemRepoPG) Delete(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, "UPDATE items SET status = $1, updated_at = $2 WHERE id = $3", model.ItemStatusDeleted, time.Now(), id)
+	return err
+}
+
+// Search 搜索 Items (使用 pg_trgm 全文搜索)
+func (r *ItemRepoPG) Search(ctx context.Context, query string, limit int) ([]*model.Item, error) {
+	// 使用 pg_trgm 的相似度搜索
+	searchPattern := "%" + query + "%"
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, type, agent, title, content, summary, source, source_url, occurred_at, created_at, updated_at, status
+		FROM items
+		WHERE status != $1
+		AND (title ILIKE $2 OR content ILIKE $2 OR summary ILIKE $2)
+		ORDER BY 
+			CASE WHEN title ILIKE $2 THEN 0 ELSE 1 END,
+			CASE WHEN summary ILIKE $2 THEN 0 ELSE 1 END,
+			created_at DESC
+		LIMIT $3
+	`, model.ItemStatusDeleted, searchPattern, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []*model.Item{}
+	for rows.Next() {
+		item := &model.Item{}
+		var occurredAt sql.NullTime
+		var sourceURL sql.NullString
+
+		err := rows.Scan(
+			&item.ID, &item.Type, &item.Agent, &item.Title, &item.Content, &item.Summary, &item.Source,
+			&sourceURL, &occurredAt,
+			&item.CreatedAt, &item.UpdatedAt, &item.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item.SourceURL = sourceURL.String
+		if occurredAt.Valid {
+			item.OccurredAt = &occurredAt.Time
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// QueryByFilter 高级查询（v2 新增）
+func (r *ItemRepoPG) QueryByFilter(ctx context.Context, filter QueryFilter) ([]*model.Item, int, error) {
+	// 设置默认值
+	if filter.Limit == 0 {
+		filter.Limit = 100
+	}
+	if filter.SortBy == "" {
+		filter.SortBy = "created_at"
+	}
+
+	// 构建查询
+	query := "FROM items WHERE 1=1"
+	args := []interface{}{}
+	argIdx := 1
+
+	// 基本过滤
+	if filter.Type != "" {
+		query += fmt.Sprintf(" AND type = $%d", argIdx)
+		args = append(args, filter.Type)
+		argIdx++
+	}
+	if filter.Agent != "" {
+		query += fmt.Sprintf(" AND agent = $%d", argIdx)
+		args = append(args, filter.Agent)
+		argIdx++
+	}
+
+	// JSONB 字段过滤
+	if filter.TrackType != "" {
+		query += fmt.Sprintf(" AND source_metadata->>'track_type' = $%d", argIdx)
+		args = append(args, filter.TrackType)
+		argIdx++
+	}
+	if filter.Status != "" {
+		query += fmt.Sprintf(" AND source_metadata->>'status' = $%d", argIdx)
+		args = append(args, filter.Status)
+		argIdx++
+	}
+
+	// 日期范围
+	if filter.DateFrom != nil {
+		query += fmt.Sprintf(" AND occurred_at >= $%d", argIdx)
+		args = append(args, filter.DateFrom)
+		argIdx++
+	}
+	if filter.DateTo != nil {
+		query += fmt.Sprintf(" AND occurred_at <= $%d", argIdx)
+		args = append(args, filter.DateTo)
+		argIdx++
+	}
+
+	// 全文搜索
+	if filter.Search != "" {
+		query += fmt.Sprintf(" AND to_tsvector('english', coalesce(title, '') || ' ' || coalesce(content, '')) @@ plainto_tsquery($%d)", argIdx)
+		args = append(args, filter.Search)
+		argIdx++
+	}
+
+	// 标签过滤
+	if len(filter.Tags) > 0 {
+		query += fmt.Sprintf(" AND id IN (SELECT item_id FROM item_tags it JOIN tags t ON it.tag_id = t.id WHERE t.name = ANY($%d))", argIdx)
+		args = append(args, filter.Tags)
+		argIdx++
+	}
+
+	// 获取总数
+	var total int
+	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) "+query, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 排序
+	sortOrder := "ASC"
+	if filter.SortDesc {
+		sortOrder = "DESC"
+	}
+	query += fmt.Sprintf(" ORDER BY %s %s", filter.SortBy, sortOrder)
+
+	// 分页
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, filter.Limit, filter.Offset)
+
+	rows, err := r.pool.Query(ctx, "SELECT id, type, agent, title, content, summary, source, source_url, source_metadata, occurred_at, created_at, updated_at, status "+query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	items := []*model.Item{}
+	for rows.Next() {
+		item := &model.Item{}
+		var occurredAt sql.NullTime
+		var sourceURL sql.NullString
+		var sourceMetadata []byte
+
+		err := rows.Scan(
+			&item.ID, &item.Type, &item.Agent, &item.Title, &item.Content, &item.Summary, &item.Source,
+			&sourceURL, &sourceMetadata, &occurredAt,
+			&item.CreatedAt, &item.UpdatedAt, &item.Status,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		item.SourceURL = sourceURL.String
+		if len(sourceMetadata) > 0 {
+			if err := json.Unmarshal(sourceMetadata, &item.SourceMetadata); err != nil {
+				item.SourceMetadata = nil
+			}
+		}
+		if occurredAt.Valid {
+			item.OccurredAt = &occurredAt.Time
+		}
+
+		items = append(items, item)
+	}
+
+	return items, total, nil
+}
+
+// UpdateTrackingHistory 更新追踪话题的历史记录（v2 新增）
+// 限制 history 数组最多 30 条
+func (r *ItemRepoPG) UpdateTrackingHistory(ctx context.Context, itemID string, historyItem model.TrackingHistoryItem) error {
+	historyJSON, err := json.Marshal(historyItem)
+	if err != nil {
+		return err
+	}
+
+	// 使用 PostgreSQL 的 jsonb 操作更新 history 数组
+	// 并限制最多 30 条
+	query := `
+		UPDATE items
+		SET source_metadata = jsonb_set(
+            source_metadata,
+            '{history}',
+            (
+                SELECT jsonb_agg(elem)
+                FROM (
+                    SELECT elem
+                    FROM jsonb_array_elements(
+                        COALESCE(source_metadata->'history', '[]'::jsonb)
+                    ) elem
+                    UNION ALL
+                    SELECT $2::jsonb
+                    ORDER BY (elem->>'date') DESC
+                    LIMIT 30
+                ) sub
+            )
+        ),
+        updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err = r.pool.Exec(ctx, query, itemID, historyJSON)
+	return err
+}
+
+// addItemTag 添加 Item-Tag 关联
+func (r *ItemRepoPG) addItemTag(ctx context.Context, itemID string, tagID int64) error {
+	_, err := r.pool.Exec(ctx, "INSERT INTO item_tags (item_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", itemID, tagID)
+	return err
+}
+
+// RemoveItemTag 移除 Item-Tag 关联
+func (r *ItemRepoPG) RemoveItemTag(ctx context.Context, itemID string, tagID int64) error {
+	_, err := r.pool.Exec(ctx, "DELETE FROM item_tags WHERE item_id = $1 AND tag_id = $2", itemID, tagID)
+	return err
+}
+
+// getItemTags 获取 Item 的标签
+func (r *ItemRepoPG) getItemTags(ctx context.Context, itemID string) ([]model.Tag, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT t.id, t.name, t.category, t.color, t.created_at
+		FROM tags t
+		JOIN item_tags it ON t.id = it.tag_id
+		WHERE it.item_id = $1
+		ORDER BY t.name
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tags := []model.Tag{}
+	for rows.Next() {
+		var tag model.Tag
+		var category, color sql.NullString
+		err := rows.Scan(&tag.ID, &tag.Name, &category, &color, &tag.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		tag.Category = category.String
+		tag.Color = color.String
+		tags = append(tags, tag)
+	}
+
+	return tags, nil
+}
+
+// SetItemTags 设置 Item 的标签（替换）
+func (r *ItemRepoPG) SetItemTags(ctx context.Context, itemID string, tagIDs []int64) error {
+	// 先清除现有标签
+	_, err := r.pool.Exec(ctx, "DELETE FROM item_tags WHERE item_id = $1", itemID)
+	if err != nil {
+		return err
+	}
+
+	// 添加新标签
+	for _, tagID := range tagIDs {
+		if err := r.addItemTag(ctx, itemID, tagID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// BatchCreate 批量创建 Items
+func (r *ItemRepoPG) BatchCreate(ctx context.Context, items []*model.Item) error {
+	return pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+		for _, item := range items {
+			now := time.Now()
+			item.CreatedAt = now
+			item.UpdatedAt = now
+			if item.Status == "" {
+				item.Status = model.ItemStatusActive
+			}
+			if item.Agent == "" {
+				item.Agent = model.AgentUnknown
+			}
+
+			// 处理 JSONB 字段
+			var sourceMetadata interface{}
+			if item.SourceMetadata != nil {
+				sourceMetadata = item.SourceMetadata
+			}
+
+			_, err := tx.Exec(ctx, `
+				INSERT INTO items (id, type, agent, title, content, summary, source, source_url, source_metadata, occurred_at, created_at, updated_at, status)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			`, item.ID, item.Type, item.Agent, item.Title, item.Content, item.Summary, item.Source, item.SourceURL, sourceMetadata, item.OccurredAt, item.CreatedAt, item.UpdatedAt, item.Status)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// GetBySource 根据 source 获取 Items
+func (r *ItemRepoPG) GetBySource(ctx context.Context, source string, limit int) ([]*model.Item, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, type, agent, title, content, summary, source, source_url, occurred_at, created_at, updated_at, status
+		FROM items
+		WHERE source = $1 AND status != $2
+		ORDER BY created_at DESC
+		LIMIT $3
+	`, source, model.ItemStatusDeleted, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []*model.Item{}
+	for rows.Next() {
+		item := &model.Item{}
+		var occurredAt sql.NullTime
+		var sourceURL sql.NullString
+
+		err := rows.Scan(
+			&item.ID, &item.Type, &item.Agent, &item.Title, &item.Content, &item.Summary, &item.Source,
+			&sourceURL, &occurredAt,
+			&item.CreatedAt, &item.UpdatedAt, &item.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item.SourceURL = sourceURL.String
+		if occurredAt.Valid {
+			item.OccurredAt = &occurredAt.Time
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// CountByType 按类型统计数量
+func (r *ItemRepoPG) CountByType(ctx context.Context) (map[model.ItemType]int, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT type, COUNT(*) as count
+		FROM items
+		WHERE status != $1
+		GROUP BY type
+	`, model.ItemStatusDeleted)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[model.ItemType]int)
+	for rows.Next() {
+		var itemType model.ItemType
+		var count int
+		if err := rows.Scan(&itemType, &count); err != nil {
+			return nil, err
+		}
+		counts[itemType] = count
+	}
+
+	return counts, nil
+}
+
+// DedupRepoPG 去重仓储 (PostgreSQL 版本)
+type DedupRepoPG struct {
+	pool *pgxpool.Pool
+}
+
+// NewDedupRepoPG 创建去重仓储
+func NewDedupRepoPG(pool *pgxpool.Pool) *DedupRepoPG {
+	return &DedupRepoPG{pool: pool}
+}
+
+// Check 检查指纹是否存在
+func (r *DedupRepoPG) Check(ctx context.Context, fingerprint string) (bool, string, error) {
+	var itemID string
+	err := r.pool.QueryRow(ctx, `
+		SELECT item_id FROM dedup WHERE fingerprint = $1
+	`, fingerprint).Scan(&itemID)
+	if err == pgx.ErrNoRows {
+		return false, "", nil
+	}
+	if err != nil {
+		return false, "", err
+	}
+	return true, itemID, nil
+}
+
+// Add 添加去重记录
+func (r *DedupRepoPG) Add(ctx context.Context, fingerprint, itemID, agent string, expiresAt *time.Time) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO dedup (fingerprint, item_id, agent, expires_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (fingerprint) DO UPDATE SET item_id = $2, agent = $3, expires_at = $4
+	`, fingerprint, itemID, agent, expiresAt)
+	return err
+}
+
+// Cleanup 清理过期记录
+func (r *DedupRepoPG) Cleanup(ctx context.Context) (int64, error) {
+	result, err := r.pool.Exec(ctx, `
+		DELETE FROM dedup WHERE expires_at IS NOT NULL AND expires_at < NOW()
+	`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+// Helper for JSON marshaling
+func toJSON(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}

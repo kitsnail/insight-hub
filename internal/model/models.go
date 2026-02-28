@@ -2,16 +2,9 @@ package model
 
 import "time"
 
-// ItemType 内容类型
-type ItemType string
-
-const (
-	ItemTypeBookmark ItemType = "bookmark"
-	ItemTypeNote     ItemType = "note"
-	ItemTypeChat     ItemType = "chat"
-	ItemTypeCode     ItemType = "code"
-	ItemTypeTask     ItemType = "task"
-)
+// ============================================
+// v3 数据模型 - 个人数据中枢
+// ============================================
 
 // ItemStatus 内容状态
 type ItemStatus string
@@ -22,22 +15,169 @@ const (
 	ItemStatusDeleted  ItemStatus = "deleted"
 )
 
-// Item 核心内容模型
+// Item v3 核心模型
+// 开放设计：type 和 source_system 都是开放字符串
 type Item struct {
-	ID             string     `json:"id"`
-	Type           ItemType   `json:"type"`
-	Title          string     `json:"title,omitempty"`
-	Content        string     `json:"content,omitempty"`
-	Summary        string     `json:"summary,omitempty"`
-	Source         string     `json:"source"`
-	SourceURL      string     `json:"source_url,omitempty"`
-	SourceMetadata string     `json:"source_metadata,omitempty"` // JSON
-	OccurredAt     *time.Time `json:"occurred_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	Status         ItemStatus `json:"status"`
-	Tags           []Tag      `json:"tags,omitempty"` // 关联标签
+	// 主键
+	ID string `json:"id"`
+
+	// 数据分类（开放）
+	Type     string  `json:"type"`              // 开放类型，不限制
+	Category *string `json:"category,omitempty"` // 可选二级分类
+
+	// 来源追溯
+	SourceSystem string  `json:"source_system"`         // 数据来源系统
+	SourceAgent  *string `json:"source_agent,omitempty"` // 来源 Agent（可选）
+	SourceURL    *string `json:"source_url,omitempty"`  // 原始 URL（如有）
+
+	// 核心内容
+	Title   string  `json:"title"`
+	Content *string `json:"content,omitempty"`
+	Summary *string `json:"summary,omitempty"`
+
+	// 灵活元数据
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+
+	// 状态与优先级
+	Status   ItemStatus `json:"status"`
+	Priority int        `json:"priority"`
+
+	// 时间戳
+	OccurredAt *time.Time `json:"occurred_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+
+	// 标签（关联）
+	Tags []Tag `json:"tags,omitempty"`
 }
+
+// ItemCreate 创建 Item 请求
+type ItemCreate struct {
+	ID           string                 `json:"id"`                     // 必填，建议 {source_system}:{uuid}
+	Type         string                 `json:"type"`                   // 必填
+	Category     *string                `json:"category,omitempty"`
+	SourceSystem string                 `json:"source_system"`          // 必填
+	SourceAgent  *string                `json:"source_agent,omitempty"`
+	SourceURL    *string                `json:"source_url,omitempty"`
+	Title        string                 `json:"title"`                  // 必填
+	Content      *string                `json:"content,omitempty"`
+	Summary      *string                `json:"summary,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	Status       ItemStatus             `json:"status,omitempty"`       // 默认 active
+	Priority     int                    `json:"priority,omitempty"`     // 默认 0
+	OccurredAt   *time.Time             `json:"occurred_at,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`         // 标签名称列表
+}
+
+// ItemUpdate 更新 Item 请求
+type ItemUpdate struct {
+	Type       *string                `json:"type,omitempty"`
+	Category   *string                `json:"category,omitempty"`
+	Title      *string                `json:"title,omitempty"`
+	Content    *string                `json:"content,omitempty"`
+	Summary    *string                `json:"summary,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	Status     *ItemStatus            `json:"status,omitempty"`
+	Priority   *int                   `json:"priority,omitempty"`
+	OccurredAt *time.Time             `json:"occurred_at,omitempty"`
+	Tags       []string               `json:"tags,omitempty"` // 替换标签
+}
+
+// ItemQuery 查询参数
+type ItemQuery struct {
+	// 基本过滤
+	Type         string `form:"type"`
+	Category     string `form:"category"`
+	SourceSystem string `form:"source_system"`
+	SourceAgent  string `form:"source_agent"`
+	Status       string `form:"status"` // 默认 active
+
+	// 时间范围
+	DateFrom string `form:"date_from"` // YYYY-MM-DD 或 ISO8601
+	DateTo   string `form:"date_to"`
+
+	// 全文搜索
+	Search string `form:"search"`
+
+	// 元数据过滤
+	Tags string `form:"tags"` // 逗号分隔
+
+	// 分页
+	Limit  int `form:"limit" binding:"max=1000"`  // 默认 100
+	Offset int `form:"offset" binding:"min=0"`
+
+	// 排序
+	SortBy   string `form:"sort_by"`    // created_at, updated_at, occurred_at, priority
+	SortDesc bool   `form:"sort_desc"`  // 默认 true
+}
+
+// ItemListResponse 列表响应
+type ItemListResponse struct {
+	Items      []Item `json:"items"`
+	Total      int    `json:"total"`
+	Limit      int    `json:"limit"`
+	Offset     int    `json:"offset"`
+	HasMore    bool   `json:"has_more"`
+}
+
+// DedupCheckRequest 去重检查请求
+type DedupCheckRequest struct {
+	SourceSystem string `json:"source_system"`         // 必填
+	SourceAgent  string `json:"source_agent,omitempty"` // 可选
+	ExternalID   string `json:"external_id,omitempty"`  // 可选，外部系统的唯一标识
+	Title        string `json:"title,omitempty"`        // 可选，标题匹配
+}
+
+// DedupCheckResponse 去重检查响应
+type DedupCheckResponse struct {
+	Exists      bool   `json:"exists"`
+	ItemID      string `json:"item_id,omitempty"`
+	Title       string `json:"title,omitempty"`
+	OccurredAt  string `json:"occurred_at,omitempty"`
+	DedupReason string `json:"dedup_reason,omitempty"` // external_id, title, content_hash
+}
+
+// BatchCreateRequest 批量创建请求
+type BatchCreateRequest struct {
+	Items []ItemCreate `json:"items"`
+}
+
+// BatchCreateResponse 批量创建响应
+type BatchCreateResponse struct {
+	Created   []Item `json:"created"`
+	Failed    []BatchCreateError `json:"failed"`
+	Total     int    `json:"total"`
+	Succeeded int    `json:"succeeded"`
+	FailedCount int  `json:"failed_count"`
+}
+
+// BatchCreateError 批量创建错误
+type BatchCreateError struct {
+	Index   int    `json:"index"`   // 在请求数组中的索引
+	ID      string `json:"id"`      // item ID
+	Error   string `json:"error"`   // 错误信息
+}
+
+// StatsResponse 统计响应
+type StatsResponse struct {
+	TotalItems int                `json:"total_items"`
+	ByType     map[string]int     `json:"by_type"`
+	BySource   map[string]int     `json:"by_source"`
+	ByStatus   map[string]int     `json:"by_status"`
+	Recent     []Item             `json:"recent,omitempty"`
+}
+
+// SourceSystem 来源系统
+type SourceSystem struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+}
+
+// ============================================
+// 其他模型
+// ============================================
 
 // Tag 标签模型
 type Tag struct {
@@ -84,30 +224,6 @@ type Task struct {
 	Recurrence  string       `json:"recurrence,omitempty"`
 }
 
-// InsightType 洞察类型
-type InsightType string
-
-const (
-	InsightTypeWeeklyReport InsightType = "weekly_report"
-	InsightTypeTrend        InsightType = "trend"
-	InsightTypeReminder     InsightType = "reminder"
-	InsightTypeSuggestion   InsightType = "suggestion"
-)
-
-// Insight 洞察模型
-type Insight struct {
-	ID           string      `json:"id"`
-	Type         InsightType `json:"type"`
-	Title        string      `json:"title"`
-	Content      string      `json:"content"`
-	PeriodStart  *time.Time  `json:"period_start,omitempty"`
-	PeriodEnd    *time.Time  `json:"period_end,omitempty"`
-	ItemIDs      string      `json:"item_ids,omitempty"` // JSON array
-	GeneratedBy  string      `json:"generated_by"`
-	CreatedAt    time.Time   `json:"created_at"`
-	Status       string      `json:"status"`
-}
-
 // Source 数据源模型
 type Source struct {
 	ID         string     `json:"id"`
@@ -150,4 +266,71 @@ type ProcessingQueue struct {
 	RetryCount  int              `json:"retry_count"`
 	CreatedAt   time.Time        `json:"created_at"`
 	ProcessedAt *time.Time       `json:"processed_at,omitempty"`
+}
+
+// ============================================
+// 预定义常量（可选，用于文档和约定）
+// ============================================
+
+// 预定义的来源系统
+const (
+	SourceOpenclaw   = "openclaw"
+	SourcePicoclaw   = "picoclaw"
+	SourceOpencode   = "opencode"
+	SourceClaudeCode = "claude-code"
+	SourceCodex      = "codex"
+	SourceManual     = "manual"
+	SourceWeb        = "web"
+)
+
+// 预定义的类型
+const (
+	TypeMemory    = "memory"
+	TypeNote      = "note"
+	TypeNews      = "news"
+	TypeDecision  = "decision"
+	TypeTask      = "task"
+	TypeInsight   = "insight"
+	TypeTracking  = "tracking"
+	TypeBrief     = "brief"
+	TypeLog       = "log"
+	TypeCode      = "code"
+	TypeBookmark  = "bookmark"
+)
+
+// ============================================
+// v2 兼容性别名（废弃，仅用于过渡期）
+// ============================================
+
+// v2 Agent 常量已废弃，使用 SourceSystem
+const (
+	AgentNews    = SourceOpenclaw
+	AgentTechDoc = SourceOpenclaw
+	AgentUnknown = "unknown"
+)
+
+// v2 兼容性常量
+const (
+	ItemTypeBrief    = TypeBrief
+	ItemTypeNews     = TypeNews
+	ItemTypeTracking = TypeTracking
+	ItemTypeInsight  = TypeInsight
+	ItemTypeLog      = TypeLog
+)
+
+// v2 兼容性元数据结构（已废弃，使用 Metadata JSONB）
+type (
+	NewsMetadata    map[string]interface{}
+	BriefMetadata   map[string]interface{}
+	TrackingMetadata map[string]interface{}
+	InsightMetadata  map[string]interface{}
+	LogMetadata      map[string]interface{}
+)
+
+// TrackingHistoryItem 追踪历史项
+type TrackingHistoryItem struct {
+	Date        string  `json:"date"`
+	Summary     string  `json:"summary"`
+	Importance  float64 `json:"importance"`
+	SourceCount int     `json:"source_count"`
 }
