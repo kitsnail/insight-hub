@@ -1,0 +1,44 @@
+# 编译产物
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试
+*.test
+*.out
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 环境变量
+.env
+.env.local
+
+# 数据文件（不提交到仓库）
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 日志
+*.log
+logs/
+
+# 依赖
+vendor/
+
+# macOS
+.DS_Store
+
+# 临时文件
+tmp/
+temp/

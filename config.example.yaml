@@ -1,0 +1,24 @@
+# Insight Hub 配置文件示例
+# 复制此文件到 ~/.insight-hub/config.yaml 并修改
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 8080
+
+# 存储配置
+storage:
+  data_dir: "~/.insight-hub"  # 数据存储目录
+
+# LLM 配置
+llm:
+  provider: "openai"           # openai, anthropic, local
+  api_key: ""                  # 从环境变量 INSIGHT_HUB_LLM_API_KEY 读取
+  model: "gpt-4o-mini"         # 模型名称
+  base_url: ""                 # 可选，自定义 API 地址
+
+# 日志配置
+log:
+  level: "info"                # debug, info, warn, error
+  format: "text"               # json, text
+  output: "stdout"             # stdout, stderr, 或文件路径
