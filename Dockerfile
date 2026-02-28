@@ -27,6 +27,7 @@ RUN apk add --no-cache ca-certificates tzdata
 # 从构建阶段复制二进制文件
 COPY --from=builder /build/insight-hub .
 COPY --from=builder /build/config.postgres.yaml ./config.yaml
+COPY --from=builder /build/web/static ./web/static
 
 # 创建数据目录
 RUN mkdir -p /data
