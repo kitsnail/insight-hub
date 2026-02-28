@@ -34,6 +34,11 @@ func (r *ItemRepository) Create(item *model.Item) error {
 		return err
 	}
 
+	// 更新全文索引
+	if err := r.UpdateFTS(item); err != nil {
+		return err
+	}
+
 	// 处理标签关联
 	if len(item.Tags) > 0 {
 		for _, tag := range item.Tags {
@@ -147,25 +152,40 @@ func (r *ItemRepository) Update(item *model.Item) error {
 		UPDATE items SET type = ?, title = ?, content = ?, summary = ?, source = ?, source_url = ?, source_metadata = ?, occurred_at = ?, updated_at = ?, status = ?
 		WHERE id = ?
 	`, item.Type, item.Title, item.Content, item.Summary, item.Source, item.SourceURL, item.SourceMetadata, item.OccurredAt, item.UpdatedAt, item.Status, item.ID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 更新全文索引
+	return r.UpdateFTS(item)
 }
 
 // Delete 软删除 Item
 func (r *ItemRepository) Delete(id string) error {
 	_, err := r.db.Exec("UPDATE items SET status = ?, updated_at = ? WHERE id = ?", model.ItemStatusDeleted, time.Now(), id)
+	if err != nil {
+		return err
+	}
+
+	// 从全文索引删除
+	_, err = r.db.Exec("DELETE FROM fts_items WHERE id = ?", id)
 	return err
 }
 
 // Search 搜索 Items
 func (r *ItemRepository) Search(query string, limit int) ([]*model.Item, error) {
+	// FTS5 查询语法：用双引号包裹用户输入，避免特殊字符问题
+	ftsQuery := `"` + query + `"`
+
 	rows, err := r.db.Query(`
 		SELECT i.id, i.type, i.title, i.content, i.summary, i.source, i.source_url, i.occurred_at, i.created_at, i.updated_at, i.status
 		FROM items i
-		JOIN fts_items fts ON i.id = fts.id
-		WHERE fts MATCH ? AND i.status != ?
-		ORDER BY rank
+		JOIN fts_items f ON f.id = i.id
+		WHERE fts_items MATCH ?
+		AND i.status != ?
+		ORDER BY bm25(fts_items)
 		LIMIT ?
-	`, query, model.ItemStatusDeleted, limit)
+	`, ftsQuery, model.ItemStatusDeleted, limit)
 	if err != nil {
 		return nil, err
 	}

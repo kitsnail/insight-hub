@@ -118,29 +118,15 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_processing_status ON processing_queue(status)`,
 
 	// 008: 创建全文搜索虚拟表
+	// id 设为 UNINDEXED 表示存储但不参与搜索匹配
 	`CREATE VIRTUAL TABLE IF NOT EXISTS fts_items USING fts5(
+		id UNINDEXED,
 		title,
 		content,
 		summary,
-		content='items',
-		content_rowid='rowid'
+		source,
+		tokenize='porter unicode61'
 	)`,
-
-	// 009: 创建全文搜索触发器
-	`CREATE TRIGGER IF NOT EXISTS items_ai AFTER INSERT ON items BEGIN
-		INSERT INTO fts_items(rowid, title, content, summary) 
-		VALUES (new.rowid, new.title, new.content, new.summary);
-	END`,
-	`CREATE TRIGGER IF NOT EXISTS items_ad AFTER DELETE ON items BEGIN
-		INSERT INTO fts_items(fts_items, rowid, title, content, summary) 
-		VALUES('delete', old.rowid, old.title, old.content, old.summary);
-	END`,
-	`CREATE TRIGGER IF NOT EXISTS items_au AFTER UPDATE ON items BEGIN
-		INSERT INTO fts_items(fts_items, rowid, title, content, summary) 
-		VALUES('delete', old.rowid, old.title, old.content, old.summary);
-		INSERT INTO fts_items(rowid, title, content, summary) 
-		VALUES (new.rowid, new.title, new.content, new.summary);
-	END`,
 }
 
 // Migrate 执行数据库迁移
