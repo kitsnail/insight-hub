@@ -77,6 +77,11 @@ func main() {
 	// 静态文件服务（Web UI）
 	webDir := "web/static"
 	if _, err := os.Stat(webDir); err == nil {
+		// v2 UI 重定向
+		mux.HandleFunc("GET /v2", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/index-v2.html", http.StatusFound)
+		})
+		
 		fs := http.FileServer(http.Dir(webDir))
 		mux.Handle("/", fs)
 	}

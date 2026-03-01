@@ -762,3 +762,38 @@ Tech-Doc Agent 集成
 
 ---
 预估工作量: 5 天
+
+
+---
+
+## UI v2 实现记录 (2026-03-01)
+
+### 技术选型
+- **前端框架**: Vanilla JS (无框架依赖)
+- **CSS 框架**: Tailwind CSS CDN
+- **字体**: Fira Sans + Fira Code
+- **风格**: Dark Mode + Glassmorphism + Bento Grid
+
+### 文件位置
+- `web/static/index-v2.html` — 完整单页应用
+
+### 访问方式
+- http://localhost:8090/index-v2.html
+- http://localhost:8090/v2 (重定向)
+
+### 已实现功能
+- ✅ 统计数据展示 (Bento Grid)
+- ✅ 类型/来源/状态筛选
+- ✅ 全文搜索
+- ✅ 排序 (创建时间/更新时间/标题)
+- ✅ 分页加载
+- ✅ 详情模态框
+- ✅ 删除功能
+- ✅ 响应式布局
+- ✅ 类型感知卡片 (tracking/news 展示不同字段)
+
+### 待实现功能
+- [ ] 新建/编辑功能
+- [ ] 标签云动态加载
+- [ ] 时间线视图 (tracking 类型)
+- [ ] 批量操作
