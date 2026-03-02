@@ -20,6 +20,7 @@ services:
       - DB_NAME=insight_hub
     volumes:
       - /Users/wh/.insight-hub/data/api:/data
+      - ./web/static:/app/web/static:ro
     depends_on:
       postgres:
         condition: service_healthy

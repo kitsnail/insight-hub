@@ -797,3 +797,44 @@ Tech-Doc Agent 集成
 - [ ] 标签云动态加载
 - [ ] 时间线视图 (tracking 类型)
 - [ ] 批量操作
+
+
+---
+
+## 功能路线图 (2026-03-02)
+
+> 详细规划见 [roadmap.md](./roadmap.md)
+
+### 版本规划
+
+#### v1.1 (近期)
+
+| 功能 | 优先级 | 状态 | 设计文档 |
+|------|--------|------|---------|
+| Markdown 渲染 | P0 | 设计中 | [markdown-rendering-design.md](./markdown-rendering-design.md) |
+| 任务看板视图 | P1 | 规划中 | - |
+| 基础图表 (Chart.js) | P1 | 规划中 | - |
+
+#### v1.2 (中期)
+
+- 高级搜索
+- 时间范围筛选
+- Dashboard 页面
+
+#### v2.0 (远期)
+
+- AI 辅助分析
+- 知识图谱
+- 报告生成
+
+---
+
+## 文档索引
+
+| 文档 | 说明 |
+|------|------|
+| [roadmap.md](./roadmap.md) | 功能路线图与方案讨论 |
+| [markdown-rendering-design.md](./markdown-rendering-design.md) | Markdown 渲染设计方案 |
+| [data-model-v3.md](./data-model-v3.md) | 数据模型 v3 |
+| [api-guide.md](./api-guide.md) | API 使用指南 |
+| [ui-design-v2.md](./ui-design-v2.md) | UI v2 设计文档 |
