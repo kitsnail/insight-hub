@@ -434,9 +434,9 @@ func (r *ItemRepoV3) Stats(ctx context.Context) (*model.StatsResponse, error) {
 		ByType:   make(map[string]int),
 		BySource: make(map[string]int),
 		ByStatus: make(map[string]int),
+		ByTag:    make(map[string]int),
 	}
 
-	// 总数
 	err := r.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM items WHERE status != $1
 	`, model.ItemStatusDeleted).Scan(&stats.TotalItems)
@@ -444,7 +444,6 @@ func (r *ItemRepoV3) Stats(ctx context.Context) (*model.StatsResponse, error) {
 		return nil, fmt.Errorf("count total: %w", err)
 	}
 
-	// 按类型统计
 	rows, err := r.pool.Query(ctx, `
 		SELECT type, COUNT(*) FROM items 
 		WHERE status != $1 
@@ -463,7 +462,6 @@ func (r *ItemRepoV3) Stats(ctx context.Context) (*model.StatsResponse, error) {
 		stats.ByType[typ] = count
 	}
 
-	// 按来源统计
 	rows, err = r.pool.Query(ctx, `
 		SELECT source_system, COUNT(*) FROM items 
 		WHERE status != $1 
@@ -482,7 +480,6 @@ func (r *ItemRepoV3) Stats(ctx context.Context) (*model.StatsResponse, error) {
 		stats.BySource[source] = count
 	}
 
-	// 按状态统计
 	rows, err = r.pool.Query(ctx, `
 		SELECT status, COUNT(*) FROM items GROUP BY status
 	`)
@@ -497,6 +494,29 @@ func (r *ItemRepoV3) Stats(ctx context.Context) (*model.StatsResponse, error) {
 			return nil, err
 		}
 		stats.ByStatus[status] = count
+	}
+
+	rows, err = r.pool.Query(ctx, `
+		SELECT t.name, COUNT(it.item_id) as count
+		FROM tags t
+		JOIN item_tags it ON t.id = it.tag_id
+		JOIN items i ON it.item_id = i.id
+		WHERE i.status != $1
+		GROUP BY t.id, t.name
+		ORDER BY count DESC
+		LIMIT 50
+	`, model.ItemStatusDeleted)
+	if err != nil {
+		return nil, fmt.Errorf("count by tag: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tag string
+		var count int
+		if err := rows.Scan(&tag, &count); err != nil {
+			return nil, err
+		}
+		stats.ByTag[tag] = count
 	}
 
 	return stats, nil
@@ -715,5 +735,50 @@ func (r *ItemRepoV3) CheckDuplicate(ctx context.Context, req *model.DedupCheckRe
 		}
 	}
 
+	return resp, nil
+}
+
+// BatchDelete 批量删除
+func (r *ItemRepoV3) BatchDelete(ctx context.Context, ids []string) (*model.BatchDeleteResponse, error) {
+	resp := &model.BatchDeleteResponse{
+		Total:  len(ids),
+		Failed: []model.BatchDeleteError{},
+	}
+
+	for _, id := range ids {
+		err := r.Delete(ctx, id)
+		if err != nil {
+			resp.Failed = append(resp.Failed, model.BatchDeleteError{
+				ID:    id,
+				Error: err.Error(),
+			})
+		}
+	}
+
+	resp.Succeeded = resp.Total - len(resp.Failed)
+	return resp, nil
+}
+
+// BatchUpdateStatus 批量更新状态
+func (r *ItemRepoV3) BatchUpdateStatus(ctx context.Context, ids []string, status model.ItemStatus) (*model.BatchUpdateStatusResponse, error) {
+	resp := &model.BatchUpdateStatusResponse{
+		Total:  len(ids),
+		Failed: []model.BatchUpdateStatusError{},
+	}
+
+	for _, id := range ids {
+		update := &model.ItemUpdate{
+			Status: &status,
+		}
+		_, err := r.Update(ctx, id, update)
+		if err != nil {
+			resp.Failed = append(resp.Failed, model.BatchUpdateStatusError{
+				ID:    id,
+				Error: err.Error(),
+			})
+		}
+	}
+
+	resp.Succeeded = resp.Total - len(resp.Failed)
 	return resp, nil
 }

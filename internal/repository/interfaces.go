@@ -13,7 +13,7 @@ type ItemRepositoryV3 interface {
 	Create(ctx context.Context, item *model.ItemCreate) (*model.Item, error)
 	GetByID(ctx context.Context, id string) (*model.Item, error)
 	Update(ctx context.Context, id string, update *model.ItemUpdate) (*model.Item, error)
-	Delete(ctx context.Context, id string) error // 软删除
+	Delete(ctx context.Context, id string) error
 
 	// 查询
 	List(ctx context.Context, query *model.ItemQuery) (*model.ItemListResponse, error)
@@ -21,6 +21,8 @@ type ItemRepositoryV3 interface {
 
 	// 批量操作
 	BatchCreate(ctx context.Context, items []*model.ItemCreate) ([]*model.Item, error)
+	BatchDelete(ctx context.Context, ids []string) (*model.BatchDeleteResponse, error)
+	BatchUpdateStatus(ctx context.Context, ids []string, status model.ItemStatus) (*model.BatchUpdateStatusResponse, error)
 
 	// 去重
 	CheckDuplicate(ctx context.Context, req *model.DedupCheckRequest) (*model.DedupCheckResponse, error)

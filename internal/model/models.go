@@ -22,13 +22,13 @@ type Item struct {
 	ID string `json:"id"`
 
 	// 数据分类（开放）
-	Type     string  `json:"type"`              // 开放类型，不限制
+	Type     string  `json:"type"`               // 开放类型，不限制
 	Category *string `json:"category,omitempty"` // 可选二级分类
 
 	// 来源追溯
-	SourceSystem string  `json:"source_system"`         // 数据来源系统
+	SourceSystem string  `json:"source_system"`          // 数据来源系统
 	SourceAgent  *string `json:"source_agent,omitempty"` // 来源 Agent（可选）
-	SourceURL    *string `json:"source_url,omitempty"`  // 原始 URL（如有）
+	SourceURL    *string `json:"source_url,omitempty"`   // 原始 URL（如有）
 
 	// 核心内容
 	Title   string  `json:"title"`
@@ -53,20 +53,20 @@ type Item struct {
 
 // ItemCreate 创建 Item 请求
 type ItemCreate struct {
-	ID           string                 `json:"id"`                     // 必填，建议 {source_system}:{uuid}
-	Type         string                 `json:"type"`                   // 必填
+	ID           string                 `json:"id"`   // 必填，建议 {source_system}:{uuid}
+	Type         string                 `json:"type"` // 必填
 	Category     *string                `json:"category,omitempty"`
-	SourceSystem string                 `json:"source_system"`          // 必填
+	SourceSystem string                 `json:"source_system"` // 必填
 	SourceAgent  *string                `json:"source_agent,omitempty"`
 	SourceURL    *string                `json:"source_url,omitempty"`
-	Title        string                 `json:"title"`                  // 必填
+	Title        string                 `json:"title"` // 必填
 	Content      *string                `json:"content,omitempty"`
 	Summary      *string                `json:"summary,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
-	Status       ItemStatus             `json:"status,omitempty"`       // 默认 active
-	Priority     int                    `json:"priority,omitempty"`     // 默认 0
+	Status       ItemStatus             `json:"status,omitempty"`   // 默认 active
+	Priority     int                    `json:"priority,omitempty"` // 默认 0
 	OccurredAt   *time.Time             `json:"occurred_at,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`         // 标签名称列表
+	Tags         []string               `json:"tags,omitempty"` // 标签名称列表
 }
 
 // ItemUpdate 更新 Item 请求
@@ -103,26 +103,26 @@ type ItemQuery struct {
 	Tags string `form:"tags"` // 逗号分隔
 
 	// 分页
-	Limit  int `form:"limit" binding:"max=1000"`  // 默认 100
+	Limit  int `form:"limit" binding:"max=1000"` // 默认 100
 	Offset int `form:"offset" binding:"min=0"`
 
 	// 排序
-	SortBy   string `form:"sort_by"`    // created_at, updated_at, occurred_at, priority
-	SortDesc bool   `form:"sort_desc"`  // 默认 true
+	SortBy   string `form:"sort_by"`   // created_at, updated_at, occurred_at, priority
+	SortDesc bool   `form:"sort_desc"` // 默认 true
 }
 
 // ItemListResponse 列表响应
 type ItemListResponse struct {
-	Items      []Item `json:"items"`
-	Total      int    `json:"total"`
-	Limit      int    `json:"limit"`
-	Offset     int    `json:"offset"`
-	HasMore    bool   `json:"has_more"`
+	Items   []Item `json:"items"`
+	Total   int    `json:"total"`
+	Limit   int    `json:"limit"`
+	Offset  int    `json:"offset"`
+	HasMore bool   `json:"has_more"`
 }
 
 // DedupCheckRequest 去重检查请求
 type DedupCheckRequest struct {
-	SourceSystem string `json:"source_system"`         // 必填
+	SourceSystem string `json:"source_system"`          // 必填
 	SourceAgent  string `json:"source_agent,omitempty"` // 可选
 	ExternalID   string `json:"external_id,omitempty"`  // 可选，外部系统的唯一标识
 	Title        string `json:"title,omitempty"`        // 可选，标题匹配
@@ -144,27 +144,65 @@ type BatchCreateRequest struct {
 
 // BatchCreateResponse 批量创建响应
 type BatchCreateResponse struct {
-	Created   []Item `json:"created"`
-	Failed    []BatchCreateError `json:"failed"`
-	Total     int    `json:"total"`
-	Succeeded int    `json:"succeeded"`
-	FailedCount int  `json:"failed_count"`
+	Created     []Item             `json:"created"`
+	Failed      []BatchCreateError `json:"failed"`
+	Total       int                `json:"total"`
+	Succeeded   int                `json:"succeeded"`
+	FailedCount int                `json:"failed_count"`
 }
 
 // BatchCreateError 批量创建错误
 type BatchCreateError struct {
-	Index   int    `json:"index"`   // 在请求数组中的索引
-	ID      string `json:"id"`      // item ID
-	Error   string `json:"error"`   // 错误信息
+	Index int    `json:"index"` // 在请求数组中的索引
+	ID    string `json:"id"`    // item ID
+	Error string `json:"error"` // 错误信息
 }
 
 // StatsResponse 统计响应
 type StatsResponse struct {
-	TotalItems int                `json:"total_items"`
-	ByType     map[string]int     `json:"by_type"`
-	BySource   map[string]int     `json:"by_source"`
-	ByStatus   map[string]int     `json:"by_status"`
-	Recent     []Item             `json:"recent,omitempty"`
+	TotalItems int            `json:"total_items"`
+	ByType     map[string]int `json:"by_type"`
+	BySource   map[string]int `json:"by_source"`
+	ByStatus   map[string]int `json:"by_status"`
+	ByTag      map[string]int `json:"by_tag,omitempty"`
+	Recent     []Item         `json:"recent,omitempty"`
+}
+
+// BatchDeleteRequest 批量删除请求
+type BatchDeleteRequest struct {
+	IDs []string `json:"ids"`
+}
+
+// BatchDeleteResponse 批量删除响应
+type BatchDeleteResponse struct {
+	Total     int                `json:"total"`
+	Succeeded int                `json:"succeeded"`
+	Failed    []BatchDeleteError `json:"failed"`
+}
+
+// BatchDeleteError 批量删除错误
+type BatchDeleteError struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
+// BatchUpdateStatusRequest 批量更新状态请求
+type BatchUpdateStatusRequest struct {
+	IDs    []string   `json:"ids"`
+	Status ItemStatus `json:"status"`
+}
+
+// BatchUpdateStatusResponse 批量更新状态响应
+type BatchUpdateStatusResponse struct {
+	Total     int                      `json:"total"`
+	Succeeded int                      `json:"succeeded"`
+	Failed    []BatchUpdateStatusError `json:"failed"`
+}
+
+// BatchUpdateStatusError 批量更新状态错误
+type BatchUpdateStatusError struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
 }
 
 // SourceSystem 来源系统
@@ -183,8 +221,8 @@ type SourceSystem struct {
 type Tag struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
-	Category  string    `json:"category,omitempty"`
-	Color     string    `json:"color,omitempty"`
+	Category  *string   `json:"category,omitempty"`
+	Color     *string   `json:"color,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -285,17 +323,17 @@ const (
 
 // 预定义的类型
 const (
-	TypeMemory    = "memory"
-	TypeNote      = "note"
-	TypeNews      = "news"
-	TypeDecision  = "decision"
-	TypeTask      = "task"
-	TypeInsight   = "insight"
-	TypeTracking  = "tracking"
-	TypeBrief     = "brief"
-	TypeLog       = "log"
-	TypeCode      = "code"
-	TypeBookmark  = "bookmark"
+	TypeMemory   = "memory"
+	TypeNote     = "note"
+	TypeNews     = "news"
+	TypeDecision = "decision"
+	TypeTask     = "task"
+	TypeInsight  = "insight"
+	TypeTracking = "tracking"
+	TypeBrief    = "brief"
+	TypeLog      = "log"
+	TypeCode     = "code"
+	TypeBookmark = "bookmark"
 )
 
 // ============================================
@@ -320,8 +358,8 @@ const (
 
 // v2 兼容性元数据结构（已废弃，使用 Metadata JSONB）
 type (
-	NewsMetadata    map[string]interface{}
-	BriefMetadata   map[string]interface{}
+	NewsMetadata     map[string]interface{}
+	BriefMetadata    map[string]interface{}
 	TrackingMetadata map[string]interface{}
 	InsightMetadata  map[string]interface{}
 	LogMetadata      map[string]interface{}

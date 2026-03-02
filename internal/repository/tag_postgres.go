@@ -41,8 +41,12 @@ func (r *TagRepoPG) GetByID(ctx context.Context, id int64) (*model.Tag, error) {
 		return nil, err
 	}
 
-	tag.Category = category.String
-	tag.Color = color.String
+	if category.Valid {
+		tag.Category = &category.String
+	}
+	if color.Valid {
+		tag.Color = &color.String
+	}
 	return tag, nil
 }
 
@@ -59,8 +63,12 @@ func (r *TagRepoPG) GetByName(ctx context.Context, name string) (*model.Tag, err
 		return nil, err
 	}
 
-	tag.Category = category.String
-	tag.Color = color.String
+	if category.Valid {
+		tag.Category = &category.String
+	}
+	if color.Valid {
+		tag.Color = &color.String
+	}
 	return tag, nil
 }
 
@@ -90,8 +98,12 @@ func (r *TagRepoPG) List(ctx context.Context, category string) ([]model.Tag, err
 		if err != nil {
 			return nil, err
 		}
-		tag.Category = cat.String
-		tag.Color = color.String
+		if cat.Valid {
+			tag.Category = &cat.String
+		}
+		if color.Valid {
+			tag.Color = &color.String
+		}
 		tags = append(tags, tag)
 	}
 
@@ -126,8 +138,10 @@ func (r *TagRepoPG) GetOrCreateByName(ctx context.Context, name string, category
 
 	// 创建新标签
 	tag = &model.Tag{
-		Name:     name,
-		Category: category,
+		Name: name,
+	}
+	if category != "" {
+		tag.Category = &category
 	}
 	if err := r.Create(ctx, tag); err != nil {
 		return nil, err

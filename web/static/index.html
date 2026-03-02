@@ -1,598 +1,1827 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insight Hub - 个人知识管理</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insight Hub - 个人数据中枢</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: {
+              primary: '#0A0A0A',
+              secondary: '#141414',
+              elevated: '#1A1A1A',
+            },
+            accent: {
+              blue: '#3B82F6',
+              cyan: '#06B6D4',
+              green: '#10B981',
+              orange: '#F97316',
+              red: '#EF4444',
+            },
+            glass: {
+              bg: 'rgba(255, 255, 255, 0.05)',
+              border: 'rgba(255, 255, 255, 0.1)',
+            }
+          },
+          fontFamily: {
+            sans: ['Fira Sans', '-apple-system', 'sans-serif'],
+            mono: ['Fira Code', 'SF Mono', 'monospace'],
+          },
         }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        
-        /* Header */
-        header {
-            background: #fff;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        header h1 { font-size: 24px; color: #2563eb; }
-        
-        /* Search */
-        .search-box {
-            background: #fff;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .search-box input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        .search-box input:focus { outline: none; border-color: #2563eb; }
-        
-        /* Layout */
-        .main-layout { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
-        
-        /* Sidebar */
-        .sidebar {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            height: fit-content;
-        }
-        .sidebar h3 { margin-bottom: 15px; font-size: 14px; color: #666; text-transform: uppercase; }
-        .sidebar ul { list-style: none; }
-        .sidebar li {
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .sidebar li:hover { background: #f0f0f0; }
-        .sidebar li.active { background: #2563eb; color: #fff; }
-        .sidebar .count { font-size: 12px; color: #999; }
-        .sidebar li.active .count { color: #fff; }
-        
-        /* Items */
-        .items-container {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .items-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .items-header h2 { font-size: 18px; }
-        
-        /* Buttons */
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-        .btn-primary { background: #2563eb; color: #fff; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-secondary { background: #e5e7eb; color: #333; }
-        .btn-secondary:hover { background: #d1d5db; }
-        
-        /* Item Card */
-        .item-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: box-shadow 0.2s;
-        }
-        .item-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .item-card h3 { font-size: 16px; margin-bottom: 8px; }
-        .item-card .meta {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-        .item-card .content {
-            color: #444;
-            font-size: 14px;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .item-card .tags { margin-top: 10px; }
-        .tag {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-right: 5px;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-        .modal.active { display: flex; justify-content: center; align-items: center; }
-        .modal-content {
-            background: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .modal-header h2 { font-size: 20px; }
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-        }
-        
-        /* Form */
-        .form-group { margin-bottom: 15px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-group textarea { min-height: 100px; resize: vertical; }
-        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-        .empty-state p { margin-bottom: 20px; }
-        
-        /* Pagination */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .pagination button {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            background: #fff;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .pagination button:hover { background: #f0f0f0; }
-        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-    </style>
+      }
+    }
+  </script>
+  
+  <style>
+    /* Custom CSS Variables */
+    :root {
+      --bg-primary: #0A0A0A;
+      --bg-secondary: #141414;
+      --bg-elevated: #1A1A1A;
+      --text-primary: #F5F5F5;
+      --text-secondary: #A3A3A3;
+      --text-muted: #737373;
+      --accent-blue: #3B82F6;
+      --accent-cyan: #06B6D4;
+      --accent-green: #10B981;
+      --accent-orange: #F97316;
+      --accent-red: #EF4444;
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-blur: 12px;
+    }
+    
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Fira Sans', -apple-system, sans-serif;
+    }
+    
+    /* Glassmorphism */
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-elevated);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2A2A2A;
+    }
+    
+    /* Card Hover Effect */
+    .item-card {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    .item-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+    }
+    
+    /* Button Hover */
+    .btn-primary {
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    }
+    
+    /* Skeleton Loading */
+    .skeleton {
+      background: linear-gradient(90deg, 
+        var(--bg-secondary) 25%, 
+        var(--bg-elevated) 50%, 
+        var(--bg-secondary) 75%
+      );
+      background-size: 200% 100%;
+      animation: skeleton-loading 1.5s infinite;
+    }
+    
+    @keyframes skeleton-loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    /* Fade In Animation */
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Modal Animation */
+    .modal-backdrop {
+      animation: fadeInBackdrop 0.2s ease;
+    }
+    
+    @keyframes fadeInBackdrop {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      animation: fadeInModal 0.2s ease;
+    }
+    
+    @keyframes fadeInModal {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* Status Indicator */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-active { background-color: var(--accent-green); }
+    .status-deleted { background-color: var(--accent-red); }
+    
+    /* Line Clamp (Tailwind CDN fix) */
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    /* Tag Style */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent-cyan);
+      margin: 2px;
+    }
+    
+    /* Sidebar Filter */
+    .filter-item {
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+    }
+    .filter-item:hover {
+      background: var(--bg-elevated);
+    }
+    .filter-item.active {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-blue);
+    }
+    
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      max-width: 320px;
+    }
+    .toast-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10B981;
+    }
+    .toast-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #EF4444;
+    }
+    .toast-info {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #3B82F6;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(20px); }
+    }
+    
+    /* Confirm Modal */
+    .confirm-modal-backdrop {
+      animation: fadeInBackdrop 0.2s ease;
+    }
+    .confirm-modal-content {
+      animation: fadeInModal 0.2s ease;
+    }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>⛵ Insight Hub</h1>
-            <button class="btn btn-primary" onclick="openCreateModal()">+ 新建</button>
-        </header>
-        
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="搜索内容..." onkeyup="handleSearch(event)">
+<body class="min-h-screen">
+  <!-- Navbar -->
+  <nav class="fixed top-4 left-4 right-4 z-50 glass rounded-xl px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <!-- Logo SVG -->
+        <svg class="w-8 h-8 text-accent-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <div>
+          <h1 class="text-lg font-semibold">Insight Hub</h1>
+          <p class="text-xs text-gray-500">个人数据中枢</p>
+        </div>
+      </div>
+      
+      <!-- Search -->
+      <div class="flex-1 max-w-xl mx-8">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input 
+            type="text" 
+            id="searchInput"
+            placeholder="搜索标题、内容、标签..." 
+            class="w-full bg-bg-elevated border border-glass-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent-blue transition-colors"
+          />
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="flex items-center space-x-4">
+        <button id="newItemBtn" class="btn-primary bg-accent-blue hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>新建</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Main Container -->
+  <div class="pt-24 px-4 pb-8">
+    <!-- Stats Bar (Bento Grid) -->
+    <div id="statsBar" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 max-w-7xl mx-auto">
+      <!-- Stats will be loaded dynamically -->
+      <div class="skeleton h-24 rounded-xl"></div>
+      <div class="skeleton h-24 rounded-xl"></div>
+      <div class="skeleton h-24 rounded-xl"></div>
+      <div class="skeleton h-24 rounded-xl"></div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="flex max-w-7xl mx-auto gap-6">
+      <!-- Sidebar -->
+      <aside class="hidden md:block w-64 flex-shrink-0">
+        <div class="glass rounded-xl p-4 sticky top-24">
+          <!-- Type Filter -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3 flex items-center justify-between">
+              <span>类型</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </h3>
+            <div id="typeFilters" class="space-y-1">
+              <!-- Dynamic -->
+            </div>
+          </div>
+          
+          <!-- Source Filter -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">来源系统</h3>
+            <div id="sourceFilters" class="space-y-1">
+              <!-- Dynamic -->
+            </div>
+          </div>
+          
+          <!-- Status Filter -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">状态</h3>
+            <div id="statusFilters" class="space-y-1">
+              <div class="filter-item active" data-filter="status" data-value="active">
+                <span class="flex items-center justify-between">
+                  <span><span class="status-dot status-active mr-2"></span>active</span>
+                  <span id="countActive" class="text-xs text-gray-500">-</span>
+                </span>
+              </div>
+              <div class="filter-item" data-filter="status" data-value="deleted">
+                <span class="flex items-center justify-between">
+                  <span><span class="status-dot status-deleted mr-2"></span>deleted</span>
+                  <span id="countDeleted" class="text-xs text-gray-500">-</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Tags -->
+          <div>
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">标签</h3>
+            <div id="tagCloud" class="flex flex-wrap gap-1">
+              <!-- Dynamic -->
+            </div>
+          </div>
+        </div>
+      </aside>
+      
+      <!-- Content Area -->
+      <main class="flex-1 min-w-0">
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div class="flex items-center space-x-2">
+            <button id="batchModeBtn" onclick="toggleBatchMode()" class="glass px-3 py-1.5 rounded-lg text-sm hover:bg-bg-elevated transition-colors flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+              </svg>
+              <span id="batchModeText">批量操作</span>
+            </button>
+            <span id="resultCount" class="text-sm text-gray-500">-</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <div id="batchActions" class="hidden flex items-center space-x-2">
+              <span id="selectedCount" class="text-sm text-accent-blue">已选择 0 项</span>
+              <button onclick="batchDelete()" class="bg-accent-red/20 text-accent-red px-3 py-1.5 rounded-lg text-sm hover:bg-accent-red/30 transition-colors">
+                批量删除
+              </button>
+              <button onclick="batchArchive()" class="glass px-3 py-1.5 rounded-lg text-sm hover:bg-bg-elevated transition-colors">
+                批量归档
+              </button>
+            </div>
+            <select id="sortSelect" class="bg-bg-elevated border border-glass-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-accent-blue">
+              <option value="created_at-desc">最新创建</option>
+              <option value="created_at-asc">最早创建</option>
+              <option value="updated_at-desc">最新更新</option>
+              <option value="title-asc">标题 A-Z</option>
+            </select>
+          </div>
         </div>
         
-        <div class="main-layout">
-            <aside class="sidebar">
-                <h3>类型</h3>
-                <ul id="typeFilter">
-                    <li class="active" data-type="" onclick="filterByType('')">
-                        <span>全部</span>
-                        <span class="count" id="count-all">0</span>
-                    </li>
-                    <li data-type="note" onclick="filterByType('note')">
-                        <span>📝 笔记</span>
-                        <span class="count" id="count-note">0</span>
-                    </li>
-                    <li data-type="bookmark" onclick="filterByType('bookmark')">
-                        <span>🔖 书签</span>
-                        <span class="count" id="count-bookmark">0</span>
-                    </li>
-                    <li data-type="chat" onclick="filterByType('chat')">
-                        <span>💬 对话</span>
-                        <span class="count" id="count-chat">0</span>
-                    </li>
-                    <li data-type="code" onclick="filterByType('code')">
-                        <span>💻 代码</span>
-                        <span class="count" id="count-code">0</span>
-                    </li>
+        <!-- Items Grid -->
+        <div id="itemsGrid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <!-- Items will be loaded dynamically -->
+        </div>
+        
+        <!-- Loading -->
+        <div id="loadingIndicator" class="hidden flex justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-blue"></div>
+        </div>
+        
+        <!-- Load More -->
+        <div id="loadMore" class="hidden flex justify-center py-8">
+          <button class="glass px-6 py-2 rounded-lg text-sm hover:bg-bg-elevated transition-colors">
+            加载更多
+          </button>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+          <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+          </svg>
+          <p class="text-gray-500">暂无数据</p>
+        </div>
+      </main>
+    </div>
+  </div>
+  
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+  
+  <!-- Confirm Modal -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-[60]">
+    <div class="confirm-modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="confirm-modal-content absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm glass rounded-xl p-6">
+      <h3 id="confirmTitle" class="text-lg font-semibold mb-2">确认操作</h3>
+      <p id="confirmMessage" class="text-sm text-gray-400 mb-6">确定要执行此操作吗？</p>
+      <div class="flex justify-end gap-3">
+        <button id="confirmCancel" class="glass px-4 py-2 rounded-lg text-sm hover:bg-bg-elevated transition-colors">
+          取消
+        </button>
+        <button id="confirmOk" class="bg-accent-red hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium">
+          确认删除
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal -->
+  <div id="modal" class="hidden fixed inset-0 z-50">
+    <div class="modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="modal-content absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-3xl md:w-full md:max-h-[80vh] overflow-auto glass rounded-2xl">
+      <div id="modalContent">
+        <!-- Modal content will be loaded dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // ============================================
+    // Toast & Confirm Components
+    // ============================================
+    
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+    
+    function showConfirm(title, message, confirmText = '确认', isDanger = false) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        okBtn.textContent = confirmText;
+        okBtn.className = isDanger 
+          ? 'bg-accent-red hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium'
+          : 'bg-accent-blue hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium';
+        
+        const handleOk = () => {
+          modal.classList.add('hidden');
+          resolve(true);
+          cleanup();
+        };
+        
+        const handleCancel = () => {
+          modal.classList.add('hidden');
+          resolve(false);
+          cleanup();
+        };
+        
+        const cleanup = () => {
+          okBtn.removeEventListener('click', handleOk);
+          cancelBtn.removeEventListener('click', handleCancel);
+        };
+        
+        okBtn.addEventListener('click', handleOk);
+        cancelBtn.addEventListener('click', handleCancel);
+        
+        modal.classList.remove('hidden');
+      });
+    }
+    
+    // ============================================
+    // API Client
+    // ============================================
+    const API = {
+      baseUrl: '/api/v1',
+      
+      async getStats() {
+        const res = await fetch(`${this.baseUrl}/stats`);
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        return res.json();
+      },
+      
+      async getItems(params = {}) {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') {
+            query.append(k, v);
+          }
+        });
+        const res = await fetch(`${this.baseUrl}/items?${query}`);
+        if (!res.ok) throw new Error('Failed to fetch items');
+        const data = await res.json();
+        return data.items || [];  // Extract items array from paginated response
+      },
+      
+      async getItem(id) {
+        const res = await fetch(`${this.baseUrl}/items/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch item');
+        return res.json();
+      },
+      
+      async createItem(data) {
+        const res = await fetch(`${this.baseUrl}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to create item');
+        return res.json();
+      },
+      
+      async updateItem(id, data) {
+        const res = await fetch(`${this.baseUrl}/items/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to update item');
+        return res.json();
+      },
+      
+      async deleteItem(id) {
+        const res = await fetch(`${this.baseUrl}/items/${id}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete item');
+        if (res.status === 204) return null;
+        return res.json();
+      },
+      
+      async batchDelete(ids) {
+        const res = await fetch(`${this.baseUrl}/items/batch-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        });
+        if (!res.ok) throw new Error('Failed to batch delete items');
+        return res.json();
+      },
+      
+      async batchUpdateStatus(ids, status) {
+        const res = await fetch(`${this.baseUrl}/items/batch-update-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids, status })
+        });
+        if (!res.ok) throw new Error('Failed to batch update status');
+        return res.json();
+      }
+    };
+    
+    // ============================================
+    // State Management
+    // ============================================
+    const state = {
+      items: [],
+      stats: null,
+      filters: {
+        type: '',
+        source_system: '',
+        status: 'active',
+        q: '',
+        tag: ''
+      },
+      sort: {
+        field: 'created_at',
+        order: 'desc'
+      },
+      pagination: {
+        limit: 20,
+        offset: 0,
+        hasMore: true
+      },
+      batchMode: false,
+      selectedIds: new Set()
+    };
+    
+    // ============================================
+    // Icons (SVG)
+    // ============================================
+    const ICONS = {
+      tracking: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>`,
+      news: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+      </svg>`,
+      note: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+      </svg>`,
+      default: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+      </svg>`
+    };
+    
+    function getTypeIcon(type) {
+      return ICONS[type] || ICONS.default;
+    }
+    
+    // ============================================
+    // UI Components
+    // ============================================
+    
+    function renderStats(stats) {
+      const container = document.getElementById('statsBar');
+      
+      const totalToday = stats.by_date?.today || 0;
+      
+      container.innerHTML = `
+        <!-- Total -->
+        <div class="glass rounded-xl p-4 hover:scale-[1.02] transition-transform cursor-pointer" onclick="setFilter('type', '')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-gray-500 text-sm">总数</span>
+            <svg class="w-5 h-5 text-accent-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+          </div>
+          <div class="text-3xl font-bold">${stats.total || 0}</div>
+          <div class="text-xs text-accent-green mt-1">+${totalToday} 今日</div>
+        </div>
+        
+        <!-- By Type -->
+        <div class="glass rounded-xl p-4 hover:scale-[1.02] transition-transform cursor-pointer" onclick="setFilter('type', 'tracking')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-gray-500 text-sm">追踪话题</span>
+            <span class="text-accent-cyan">${getTypeIcon('tracking')}</span>
+          </div>
+          <div class="text-3xl font-bold">${stats.by_type?.tracking || 0}</div>
+          <div class="text-xs text-gray-500 mt-1">active: ${stats.by_status?.active || 0}</div>
+        </div>
+        
+        <!-- News -->
+        <div class="glass rounded-xl p-4 hover:scale-[1.02] transition-transform cursor-pointer" onclick="setFilter('type', 'news')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-gray-500 text-sm">新闻</span>
+            <span class="text-accent-orange">${getTypeIcon('news')}</span>
+          </div>
+          <div class="text-3xl font-bold">${stats.by_type?.news || 0}</div>
+        </div>
+        
+        <!-- Source Distribution -->
+        <div class="glass rounded-xl p-4 col-span-2 md:col-span-1">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-gray-500 text-sm">来源分布</span>
+          </div>
+          ${Object.entries(stats.by_source_system || {}).map(([source, count]) => `
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-400">${source}</span>
+              <span class="text-accent-blue">${count}</span>
+            </div>
+            <div class="w-full bg-bg-elevated rounded-full h-1.5 mt-1 mb-2">
+              <div class="bg-accent-blue h-1.5 rounded-full" style="width: ${(count / stats.total * 100).toFixed(0)}%"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    
+    function renderFilters(stats) {
+      // Type filters
+      const typeContainer = document.getElementById('typeFilters');
+      const types = Object.entries(stats.by_type || {});
+      typeContainer.innerHTML = `
+        <div class="filter-item ${state.filters.type === '' ? 'active' : ''}" data-filter="type" data-value="">
+          <span class="flex items-center justify-between">
+            <span>全部</span>
+            <span class="text-xs text-gray-500">${stats.total || 0}</span>
+          </span>
+        </div>
+        ${types.map(([type, count]) => `
+          <div class="filter-item ${state.filters.type === type ? 'active' : ''}" data-filter="type" data-value="${type}">
+            <span class="flex items-center justify-between">
+              <span class="flex items-center">
+                <span class="mr-2">${getTypeIcon(type)}</span>
+                ${type}
+              </span>
+              <span class="text-xs text-gray-500">${count}</span>
+            </span>
+          </div>
+        `).join('')}
+      `;
+      
+      // Source filters
+      const sourceContainer = document.getElementById('sourceFilters');
+      const sources = Object.entries(stats.by_source_system || {});
+      sourceContainer.innerHTML = `
+        <div class="filter-item ${state.filters.source_system === '' ? 'active' : ''}" data-filter="source_system" data-value="">
+          <span class="flex items-center justify-between">
+            <span>全部</span>
+            <span class="text-xs text-gray-500">${stats.total || 0}</span>
+          </span>
+        </div>
+        ${sources.map(([source, count]) => `
+          <div class="filter-item ${state.filters.source_system === source ? 'active' : ''}" data-filter="source_system" data-value="${source}">
+            <span class="flex items-center justify-between">
+              <span>${source}</span>
+              <span class="text-xs text-gray-500">${count}</span>
+            </span>
+          </div>
+        `).join('')}
+      `;
+      
+      // Status counts
+      document.getElementById('countActive').textContent = stats.by_status?.active || 0;
+      document.getElementById('countDeleted').textContent = stats.by_status?.deleted || 0;
+      
+      renderTagCloud(stats);
+      
+      // Bind filter click events
+      document.querySelectorAll('.filter-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const filter = item.dataset.filter;
+          const value = item.dataset.value;
+          setFilter(filter, value);
+        });
+      });
+    }
+    
+    function renderTagCloud(stats) {
+      const container = document.getElementById('tagCloud');
+      const tags = Object.entries(stats.by_tag || {});
+      
+      if (tags.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-500">暂无标签</span>';
+        return;
+      }
+      
+      const maxCount = Math.max(...tags.map(([_, count]) => count));
+      
+      container.innerHTML = tags.map(([tag, count]) => {
+        const size = Math.max(0.75, Math.min(1.25, 0.75 + (count / maxCount) * 0.5));
+        const isActive = state.filters.tag === tag;
+        return `<span 
+          class="tag cursor-pointer hover:bg-accent-blue/30 transition-colors ${isActive ? 'bg-accent-blue/30 ring-1 ring-accent-blue' : ''}" 
+          style="font-size: ${size}rem;"
+          onclick="toggleTagFilter('${tag}')"
+        >${tag} <span class="text-xs opacity-60">${count}</span></span>`;
+      }).join('');
+    }
+    
+    function toggleTagFilter(tag) {
+      if (state.filters.tag === tag) {
+        state.filters.tag = '';
+      } else {
+        state.filters.tag = tag;
+      }
+      loadItems();
+      renderTagCloud(state.stats);
+    }
+    
+    function renderItemCard(item) {
+      const icon = getTypeIcon(item.type);
+      const statusClass = item.status === 'active' ? 'status-active' : 'status-deleted';
+      const tags = item.tags || [];
+      
+      // Parse metadata for tracking type
+      let metadataHtml = '';
+      if (item.type === 'tracking' && item.metadata) {
+        const meta = item.metadata;
+        if (meta.keywords) {
+          metadataHtml += `
+            <div class="mb-2">
+              <span class="text-xs text-gray-500">关键词:</span>
+              <div class="flex flex-wrap gap-1 mt-1">
+                ${meta.keywords.slice(0, 5).map(k => `<span class="tag">${k}</span>`).join('')}
+              </div>
+            </div>
+          `;
+        }
+        if (meta.follow_ups) {
+          metadataHtml += `
+            <div class="mb-2">
+              <span class="text-xs text-gray-500">后续关注:</span>
+              <ul class="text-xs text-gray-400 mt-1 list-disc list-inside">
+                ${meta.follow_ups.slice(0, 3).map(f => `<li>${f}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+        if (meta.impact) {
+          metadataHtml += `
+            <div class="mb-2">
+              <span class="text-xs text-gray-500">影响:</span>
+              <p class="text-xs text-gray-400 mt-1">${meta.impact}</p>
+            </div>
+          `;
+        }
+      }
+      
+      // Parse metadata for news type
+      if (item.type === 'news' && item.metadata) {
+        const meta = item.metadata;
+        if (meta.sentiment) {
+          metadataHtml += `
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-gray-500">情感:</span>
+              <span class="${meta.sentiment === 'positive' ? 'text-accent-green' : meta.sentiment === 'negative' ? 'text-accent-red' : 'text-gray-400'}">${meta.sentiment}</span>
+            </div>
+          `;
+        }
+        if (meta.importance) {
+          metadataHtml += `
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-gray-500">重要性:</span>
+              <span class="text-accent-orange">${(meta.importance * 100).toFixed(0)}%</span>
+            </div>
+          `;
+        }
+        if (meta.source_url) {
+          metadataHtml += `
+            <div class="text-xs mt-2">
+              <a href="${meta.source_url}" target="_blank" class="text-accent-cyan hover:underline">查看原文</a>
+            </div>
+          `;
+        }
+      }
+      
+      return `
+        <div class="item-card glass rounded-xl p-4 cursor-pointer relative" onclick="${state.batchMode ? `toggleItemSelection('${item.id}', event)` : `showItemDetail('${item.id}')`}">
+          ${state.batchMode ? `
+            <div class="absolute top-3 left-3 z-10">
+              <input type="checkbox" 
+                class="w-5 h-5 rounded border-gray-600 bg-bg-elevated text-accent-blue focus:ring-accent-blue focus:ring-2 cursor-pointer"
+                ${state.selectedIds.has(item.id) ? 'checked' : ''}
+                onclick="event.stopPropagation(); toggleItemSelection('${item.id}', event)"
+              >
+            </div>
+          ` : ''}
+          <!-- Header -->
+          <div class="flex items-start justify-between mb-3 ${state.batchMode ? 'ml-8' : ''}">
+            <div class="flex items-center gap-2">
+              <span class="text-accent-cyan">${icon}</span>
+              <h3 class="font-medium text-sm line-clamp-1">${item.title || 'Untitled'}</h3>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs text-gray-500 font-mono">${item.id?.substring(0, 8) || '-'}</span>
+              <span class="status-dot ${statusClass}"></span>
+            </div>
+          </div>
+          
+          <!-- Content -->
+          <p class="text-sm text-gray-400 line-clamp-2 mb-3">${item.content || ''}</p>
+          
+          <!-- Metadata -->
+          ${metadataHtml}
+          
+          <!-- Tags -->
+          ${tags.length > 0 ? `
+            <div class="flex flex-wrap gap-1 mb-3">
+              ${tags.slice(0, 5).map(t => `<span class="tag">${typeof t === 'string' ? t : t.name}</span>`).join('')}
+            </div>
+          ` : ''}
+          
+          <!-- Footer -->
+          <div class="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-glass-border">
+            <span>${formatDate(item.created_at)}</span>
+            <span>${item.source_system || '-'}/${item.source_agent || '-'}</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderItems(items) {
+      const container = document.getElementById('itemsGrid');
+      
+      if (items.length === 0) {
+        container.innerHTML = '';
+        document.getElementById('emptyState').classList.remove('hidden');
+        return;
+      }
+      
+      document.getElementById('emptyState').classList.add('hidden');
+      container.innerHTML = items.map(renderItemCard).join('');
+    }
+    
+    function renderItemDetail(item) {
+      const icon = getTypeIcon(item.type);
+      const tags = item.tags || [];
+      
+      let metadataHtml = '';
+      if (item.metadata) {
+        metadataHtml = Object.entries(item.metadata).map(([key, value]) => {
+          if (Array.isArray(value)) {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <ul class="list-disc list-inside text-sm text-gray-300">
+                  ${value.map(v => `<li>${v}</li>`).join('')}
                 </ul>
-                
-                <h3 style="margin-top: 30px;">标签</h3>
-                <ul id="tagList"></ul>
-            </aside>
-            
-            <main class="items-container">
-                <div class="items-header">
-                    <h2 id="itemsTitle">全部内容</h2>
-                    <span id="totalCount">0 条</span>
-                </div>
-                <div id="itemsList"></div>
-                <div class="pagination" id="pagination"></div>
-            </main>
-        </div>
-    </div>
-    
-    <!-- Create/Edit Modal -->
-    <div class="modal" id="itemModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">新建内容</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <form id="itemForm" onsubmit="handleSubmit(event)">
-                <input type="hidden" id="itemId">
-                <div class="form-group">
-                    <label>类型</label>
-                    <select id="itemType">
-                        <option value="note">📝 笔记</option>
-                        <option value="bookmark">🔖 书签</option>
-                        <option value="chat">💬 对话</option>
-                        <option value="code">💻 代码</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>标题</label>
-                    <input type="text" id="itemTitle" required>
-                </div>
-                <div class="form-group">
-                    <label>内容</label>
-                    <textarea id="itemContent"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>来源 URL</label>
-                    <input type="url" id="itemSourceUrl" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>标签（逗号分隔）</label>
-                    <input type="text" id="itemTags" placeholder="标签1, 标签2">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- View Modal -->
-    <div class="modal" id="viewModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="viewTitle"></h2>
-                <button class="close-btn" onclick="closeViewModal()">&times;</button>
-            </div>
-            <div id="viewContent"></div>
-            <div class="form-actions">
-                <button class="btn btn-secondary" onclick="deleteCurrentItem()">删除</button>
-                <button class="btn btn-primary" onclick="editCurrentItem()">编辑</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // State
-        let currentPage = 1;
-        let currentType = '';
-        let currentItemId = null;
-        
-        // API
-        const API = '/api';
-        
-        async function fetchItems(page = 1, type = '') {
-            const params = new URLSearchParams({ page, page_size: 20 });
-            if (type) params.append('type', type);
-            
-            const res = await fetch(`${API}/items?${params}`);
-            return res.json();
-        }
-        
-        async function fetchItem(id) {
-            const res = await fetch(`${API}/items/${id}`);
-            return res.json();
-        }
-        
-        async function createItem(data) {
-            const res = await fetch(`${API}/items`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return res.json();
-        }
-        
-        async function updateItem(id, data) {
-            const res = await fetch(`${API}/items/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return res.json();
-        }
-        
-        async function deleteItem(id) {
-            await fetch(`${API}/items/${id}`, { method: 'DELETE' });
-        }
-        
-        async function searchItems(query) {
-            const res = await fetch(`${API}/items/search?q=${encodeURIComponent(query)}`);
-            return res.json();
-        }
-        
-        async function fetchTags() {
-            const res = await fetch(`${API}/tags`);
-            return res.json();
-        }
-        
-        // Render
-        function renderItems(data) {
-            const { items, total, page, page_size } = data;
-            
-            document.getElementById('totalCount').textContent = `${total} 条`;
-            document.getElementById('count-all').textContent = total;
-            
-            if (items.length === 0) {
-                document.getElementById('itemsList').innerHTML = `
-                    <div class="empty-state">
-                        <p>暂无内容</p>
-                        <button class="btn btn-primary" onclick="openCreateModal()">创建第一条</button>
-                    </div>
-                `;
-                document.getElementById('pagination').innerHTML = '';
-                return;
-            }
-            
-            const html = items.map(item => `
-                <div class="item-card" onclick="viewItem('${item.id}')">
-                    <h3>${escapeHtml(item.title || '无标题')}</h3>
-                    <div class="meta">
-                        ${getTypeEmoji(item.type)} ${formatDate(item.created_at)}
-                    </div>
-                    <div class="content">${escapeHtml(item.content || '')}</div>
-                    ${item.tags && item.tags.length > 0 ? `
-                        <div class="tags">
-                            ${item.tags.map(t => `<span class="tag">${escapeHtml(t.name)}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-            `).join('');
-            
-            document.getElementById('itemsList').innerHTML = html;
-            
-            // Pagination
-            const totalPages = Math.ceil(total / page_size);
-            let paginationHtml = '';
-            if (totalPages > 1) {
-                paginationHtml = `
-                    <button onclick="loadPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>上一页</button>
-                    <span>第 ${page} / ${totalPages} 页</span>
-                    <button onclick="loadPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>下一页</button>
-                `;
-            }
-            document.getElementById('pagination').innerHTML = paginationHtml;
-        }
-        
-        function renderTags(tags) {
-            const html = tags.slice(0, 10).map(tag => `
-                <li onclick="filterByTag('${escapeHtml(tag.name)}')">
-                    <span>${escapeHtml(tag.name)}</span>
-                    <span class="count">${tag.item_count}</span>
-                </li>
-            `).join('');
-            document.getElementById('tagList').innerHTML = html;
-        }
-        
-        // Actions
-        async function loadItems() {
-            const data = await fetchItems(currentPage, currentType);
-            renderItems(data);
-        }
-        
-        async function loadTags() {
-            const tags = await fetchTags();
-            renderTags(tags);
-        }
-        
-        function loadPage(page) {
-            currentPage = page;
-            loadItems();
-        }
-        
-        function filterByType(type) {
-            currentType = type;
-            currentPage = 1;
-            
-            // Update active state
-            document.querySelectorAll('#typeFilter li').forEach(li => {
-                li.classList.toggle('active', li.dataset.type === type);
-            });
-            
-            // Update title
-            const titles = { '': '全部内容', 'note': '笔记', 'bookmark': '书签', 'chat': '对话', 'code': '代码' };
-            document.getElementById('itemsTitle').textContent = titles[type];
-            
-            loadItems();
-        }
-        
-        async function filterByTag(tag) {
-            document.getElementById('searchInput').value = tag;
-            const results = await searchItems(tag);
-            renderItems({ items: results.items, total: results.items.length, page: 1, page_size: 20 });
-            document.getElementById('itemsTitle').textContent = `标签: ${tag}`;
-        }
-        
-        async function handleSearch(e) {
-            if (e.key === 'Enter') {
-                const query = e.target.value.trim();
-                if (query) {
-                    const results = await searchItems(query);
-                    renderItems({ items: results.items, total: results.items.length, page: 1, page_size: 20 });
-                    document.getElementById('itemsTitle').textContent = `搜索: ${query}`;
-                } else {
-                    filterByType(currentType);
-                }
-            }
-        }
-        
-        // Modal
-        function openCreateModal() {
-            document.getElementById('modalTitle').textContent = '新建内容';
-            document.getElementById('itemForm').reset();
-            document.getElementById('itemId').value = '';
-            document.getElementById('itemModal').classList.add('active');
-        }
-        
-        function closeModal() {
-            document.getElementById('itemModal').classList.remove('active');
-        }
-        
-        async function viewItem(id) {
-            currentItemId = id;
-            const item = await fetchItem(id);
-            
-            document.getElementById('viewTitle').textContent = item.title || '无标题';
-            document.getElementById('viewContent').innerHTML = `
-                <div class="meta" style="margin-bottom: 15px;">
-                    ${getTypeEmoji(item.type)} 创建于 ${formatDate(item.created_at)}
-                </div>
-                ${item.content ? `<div style="white-space: pre-wrap;">${escapeHtml(item.content)}</div>` : ''}
-                ${item.source_url ? `<div style="margin-top: 15px;"><a href="${item.source_url}" target="_blank">${item.source_url}</a></div>` : ''}
-                ${item.tags && item.tags.length > 0 ? `
-                    <div class="tags" style="margin-top: 15px;">
-                        ${item.tags.map(t => `<span class="tag">${escapeHtml(t.name)}</span>`).join('')}
-                    </div>
-                ` : ''}
+              </div>
             `;
-            document.getElementById('viewModal').classList.add('active');
+          } else if (typeof value === 'object') {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <pre class="text-xs text-gray-300 bg-bg-primary p-2 rounded overflow-auto">${JSON.stringify(value, null, 2)}</pre>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <p class="text-sm text-gray-300">${value}</p>
+              </div>
+            `;
+          }
+        }).join('');
+      }
+      
+      return `
+        <div class="p-6">
+          <!-- Header -->
+          <div class="flex items-start justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <span class="text-accent-cyan">${icon}</span>
+              <h2 class="text-xl font-semibold">${item.title || 'Untitled'}</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="editItem('${item.id}')" class="p-2 hover:bg-bg-elevated rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button onclick="deleteItem('${item.id}')" class="p-2 hover:bg-accent-red/20 rounded-lg transition-colors text-accent-red">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+              <button onclick="closeModal()" class="p-2 hover:bg-bg-elevated rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Meta Info -->
+          <div class="flex items-center gap-4 text-sm text-gray-500 mb-6">
+            <span class="font-mono">${item.id}</span>
+            <span class="status-dot ${item.status === 'active' ? 'status-active' : 'status-deleted'}"></span>
+            <span>${item.status}</span>
+            <span>${item.type}</span>
+          </div>
+          
+          <!-- Content -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-400 mb-2">内容</h4>
+            <p class="text-gray-300 whitespace-pre-wrap">${item.content || ''}</p>
+          </div>
+          
+          <!-- Tags -->
+          ${tags.length > 0 ? `
+            <div class="mb-6">
+              <h4 class="text-sm font-medium text-gray-400 mb-2">标签</h4>
+              <div class="flex flex-wrap gap-1">
+                ${tags.map(t => `<span class="tag">${typeof t === 'string' ? t : t.name}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <!-- Metadata -->
+          ${metadataHtml ? `
+            <div class="mb-6">
+              <h4 class="text-sm font-medium text-gray-400 mb-2">元数据</h4>
+              ${metadataHtml}
+            </div>
+          ` : ''}
+          
+          <!-- Footer -->
+          <div class="flex items-center justify-between text-sm text-gray-500 pt-4 border-t border-glass-border">
+            <div>
+              <span>创建: ${formatDate(item.created_at)}</span>
+              <span class="mx-2">|</span>
+              <span>更新: ${formatDate(item.updated_at)}</span>
+            </div>
+            <div>
+              <span>${item.source_system || '-'}</span>
+              <span class="mx-1">/</span>
+              <span>${item.source_agent || '-'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // ============================================
+    // Actions
+    // ============================================
+    
+    async function loadStats() {
+      try {
+        const stats = await API.getStats();
+        state.stats = stats;
+        renderStats(stats);
+        renderFilters(stats);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    }
+    
+    async function loadItems(append = false) {
+      const loading = document.getElementById('loadingIndicator');
+      const loadMore = document.getElementById('loadMore');
+      
+      loading.classList.remove('hidden');
+      loadMore.classList.add('hidden');
+      
+      try {
+        const params = {
+          ...state.filters,
+          sort: state.sort.field,
+          order: state.sort.order,
+          limit: state.pagination.limit,
+          offset: append ? state.pagination.offset : 0
+        };
+        
+        if (state.filters.tag) {
+          params.tags = state.filters.tag;
         }
         
-        function closeViewModal() {
-            document.getElementById('viewModal').classList.remove('active');
+        const items = await API.getItems(params);
+        
+        if (append) {
+          state.items = [...state.items, ...items];
+        } else {
+          state.items = items;
+          state.pagination.offset = 0;
         }
         
-        async function editCurrentItem() {
-            const item = await fetchItem(currentItemId);
-            closeViewModal();
-            
-            document.getElementById('modalTitle').textContent = '编辑内容';
-            document.getElementById('itemId').value = item.id;
-            document.getElementById('itemType').value = item.type;
-            document.getElementById('itemTitle').value = item.title || '';
-            document.getElementById('itemContent').value = item.content || '';
-            document.getElementById('itemSourceUrl').value = item.source_url || '';
-            document.getElementById('itemTags').value = (item.tags || []).map(t => t.name).join(', ');
-            
-            document.getElementById('itemModal').classList.add('active');
-        }
+        state.pagination.hasMore = items.length === state.pagination.limit;
+        state.pagination.offset += items.length;
         
-        async function deleteCurrentItem() {
-            if (confirm('确定要删除吗？')) {
-                await deleteItem(currentItemId);
-                closeViewModal();
-                loadItems();
-                loadTags();
-            }
-        }
+        renderItems(state.items);
+        document.getElementById('resultCount').textContent = `${state.items.length} 条结果`;
         
-        async function handleSubmit(e) {
-            e.preventDefault();
-            
-            const id = document.getElementById('itemId').value;
-            const data = {
-                type: document.getElementById('itemType').value,
-                title: document.getElementById('itemTitle').value,
-                content: document.getElementById('itemContent').value,
-                source_url: document.getElementById('itemSourceUrl').value,
-                tags: document.getElementById('itemTags').value.split(',').map(t => t.trim()).filter(t => t)
-            };
-            
-            if (id) {
-                await updateItem(id, data);
-            } else {
-                await createItem(data);
-            }
-            
-            closeModal();
-            loadItems();
-            loadTags();
+        if (state.pagination.hasMore) {
+          loadMore.classList.remove('hidden');
         }
-        
-        // Helpers
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+      } catch (error) {
+        console.error('Failed to load items:', error);
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+    
+    function setFilter(filter, value) {
+      state.filters[filter] = value;
+      loadItems();
+      
+      // Update UI
+      document.querySelectorAll(`.filter-item[data-filter="${filter}"]`).forEach(item => {
+        item.classList.toggle('active', item.dataset.value === value);
+      });
+    }
+    
+    async function showItemDetail(id) {
+      try {
+        const item = await API.getItem(id);
+        document.getElementById('modalContent').innerHTML = renderItemDetailWithTimeline(item);
+        document.getElementById('modal').classList.remove('hidden');
+      } catch (error) {
+        console.error('Failed to load item:', error);
+      }
+    }
+    
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+    
+    // ============================================
+    // Batch Operations
+    // ============================================
+    
+    function toggleBatchMode() {
+      state.batchMode = !state.batchMode;
+      state.selectedIds.clear();
+      
+      const btn = document.getElementById('batchModeBtn');
+      const text = document.getElementById('batchModeText');
+      const actions = document.getElementById('batchActions');
+      
+      if (state.batchMode) {
+        btn.classList.add('bg-accent-blue/20', 'text-accent-blue');
+        text.textContent = '取消选择';
+        actions.classList.remove('hidden');
+      } else {
+        btn.classList.remove('bg-accent-blue/20', 'text-accent-blue');
+        text.textContent = '批量操作';
+        actions.classList.add('hidden');
+      }
+      
+      updateSelectedCount();
+      renderItems(state.items);
+    }
+    
+    function toggleItemSelection(id, event) {
+      if (event) event.stopPropagation();
+      
+      if (state.selectedIds.has(id)) {
+        state.selectedIds.delete(id);
+      } else {
+        state.selectedIds.add(id);
+      }
+      
+      updateSelectedCount();
+      renderItems(state.items);
+    }
+    
+    function updateSelectedCount() {
+      const count = state.selectedIds.size;
+      document.getElementById('selectedCount').textContent = `已选择 ${count} 项`;
+    }
+    
+    async function batchDelete() {
+      const ids = Array.from(state.selectedIds);
+      if (ids.length === 0) {
+        showToast('请先选择要删除的项目', 'error');
+        return;
+      }
+      
+      const confirmed = await showConfirm(
+        '批量删除确认',
+        `确定要删除选中的 ${ids.length} 个项目吗？此操作将软删除这些项目。`,
+        '确认删除',
+        true
+      );
+      
+      if (!confirmed) return;
+      
+      try {
+        const result = await API.batchDelete(ids);
+        showToast(`成功删除 ${result.succeeded} 个项目`, 'success');
+        if (result.failed.length > 0) {
+          showToast(`${result.failed.length} 个项目删除失败`, 'error');
         }
-        
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
-        }
-        
-        function getTypeEmoji(type) {
-            const emojis = { 'note': '📝', 'bookmark': '🔖', 'chat': '💬', 'code': '💻' };
-            return emojis[type] || '📄';
-        }
-        
-        // Init
+        state.selectedIds.clear();
+        updateSelectedCount();
+        loadStats();
         loadItems();
-        loadTags();
-    </script>
+      } catch (error) {
+        showToast('批量删除失败: ' + error.message, 'error');
+      }
+    }
+    
+    async function batchArchive() {
+      const ids = Array.from(state.selectedIds);
+      if (ids.length === 0) {
+        showToast('请先选择要归档的项目', 'error');
+        return;
+      }
+      
+      const confirmed = await showConfirm(
+        '批量归档确认',
+        `确定要归档选中的 ${ids.length} 个项目吗？`,
+        '确认归档',
+        false
+      );
+      
+      if (!confirmed) return;
+      
+      try {
+        const result = await API.batchUpdateStatus(ids, 'archived');
+        showToast(`成功归档 ${result.succeeded} 个项目`, 'success');
+        if (result.failed.length > 0) {
+          showToast(`${result.failed.length} 个项目归档失败`, 'error');
+        }
+        state.selectedIds.clear();
+        updateSelectedCount();
+        loadStats();
+        loadItems();
+      } catch (error) {
+        showToast('批量归档失败: ' + error.message, 'error');
+      }
+    }
+    
+    // ============================================
+    // Timeline View
+    // ============================================
+    
+    function renderTimelineView(item) {
+      const history = item.metadata?.history || [];
+      
+      if (history.length === 0) {
+        return `
+          <div class="p-6 text-center text-gray-500">
+            <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p>暂无历史记录</p>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="p-6">
+          <div class="relative">
+            <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-glass-border"></div>
+            ${history.sort((a, b) => new Date(b.date) - new Date(a.date)).map((h, i) => `
+              <div class="relative pl-10 pb-6 ${i === history.length - 1 ? 'pb-0' : ''}">
+                <div class="absolute left-2 top-1 w-4 h-4 rounded-full ${i === 0 ? 'bg-accent-blue' : 'bg-bg-elevated'} border-2 ${i === 0 ? 'border-accent-blue' : 'border-glass-border'}"></div>
+                <div class="glass rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500">${formatDate(h.date)}</span>
+                    ${h.importance ? `<span class="text-xs text-accent-orange">${(h.importance * 100).toFixed(0)}% 重要</span>` : ''}
+                  </div>
+                  <p class="text-sm text-gray-300">${h.summary || ''}</p>
+                  ${h.source_count ? `<div class="text-xs text-gray-500 mt-2">${h.source_count} 个来源</div>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderItemDetailWithTimeline(item) {
+      const icon = getTypeIcon(item.type);
+      const tags = item.tags || [];
+      const isTracking = item.type === 'tracking';
+      
+      let metadataHtml = '';
+      if (item.metadata && !isTracking) {
+        metadataHtml = Object.entries(item.metadata).filter(([key]) => key !== 'history').map(([key, value]) => {
+          if (Array.isArray(value)) {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <ul class="list-disc list-inside text-sm text-gray-300">
+                  ${value.map(v => `<li>${v}</li>`).join('')}
+                </ul>
+              </div>
+            `;
+          } else if (typeof value === 'object') {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <pre class="text-xs text-gray-300 bg-bg-primary p-2 rounded overflow-auto">${JSON.stringify(value, null, 2)}</pre>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">${formatKey(key)}</h4>
+                <p class="text-sm text-gray-300">${value}</p>
+              </div>
+            `;
+          }
+        }).join('');
+      }
+      
+      return `
+        <div>
+          <!-- Header -->
+          <div class="flex items-start justify-between p-6 border-b border-glass-border">
+            <div class="flex items-center gap-3">
+              <span class="text-accent-cyan">${icon}</span>
+              <h2 class="text-xl font-semibold">${item.title || 'Untitled'}</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="editItem('${item.id}')" class="p-2 hover:bg-bg-elevated rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button onclick="deleteItem('${item.id}')" class="p-2 hover:bg-accent-red/20 rounded-lg transition-colors text-accent-red">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+              <button onclick="closeModal()" class="p-2 hover:bg-bg-elevated rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          ${isTracking ? `
+            <!-- Tabs -->
+            <div class="flex border-b border-glass-border">
+              <button onclick="switchDetailTab('detail')" id="tabDetail" class="flex-1 px-4 py-3 text-sm font-medium text-accent-blue border-b-2 border-accent-blue">
+                详情
+              </button>
+              <button onclick="switchDetailTab('timeline')" id="tabTimeline" class="flex-1 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-300">
+                时间线
+              </button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div id="tabContentDetail">
+              <div class="p-6">
+                <!-- Meta Info -->
+                <div class="flex items-center gap-4 text-sm text-gray-500 mb-6">
+                  <span class="font-mono">${item.id}</span>
+                  <span class="status-dot ${item.status === 'active' ? 'status-active' : 'status-deleted'}"></span>
+                  <span>${item.status}</span>
+                  <span>${item.type}</span>
+                </div>
+                
+                <!-- Content -->
+                <div class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-400 mb-2">内容</h4>
+                  <p class="text-gray-300 whitespace-pre-wrap">${item.content || ''}</p>
+                </div>
+                
+                <!-- Tags -->
+                ${tags.length > 0 ? `
+                  <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2">标签</h4>
+                    <div class="flex flex-wrap gap-1">
+                      ${tags.map(t => `<span class="tag">${typeof t === 'string' ? t : t.name}</span>`).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+                
+                <!-- Metadata -->
+                ${metadataHtml ? `
+                  <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2">元数据</h4>
+                    ${metadataHtml}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <div id="tabContentTimeline" class="hidden">
+              ${renderTimelineView(item)}
+            </div>
+          ` : `
+            <div class="p-6">
+              <!-- Meta Info -->
+              <div class="flex items-center gap-4 text-sm text-gray-500 mb-6">
+                <span class="font-mono">${item.id}</span>
+                <span class="status-dot ${item.status === 'active' ? 'status-active' : 'status-deleted'}"></span>
+                <span>${item.status}</span>
+                <span>${item.type}</span>
+              </div>
+              
+              <!-- Content -->
+              <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-2">内容</h4>
+                <p class="text-gray-300 whitespace-pre-wrap">${item.content || ''}</p>
+              </div>
+              
+              <!-- Tags -->
+              ${tags.length > 0 ? `
+                <div class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-400 mb-2">标签</h4>
+                  <div class="flex flex-wrap gap-1">
+                    ${tags.map(t => `<span class="tag">${typeof t === 'string' ? t : t.name}</span>`).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              
+              <!-- Metadata -->
+              ${metadataHtml ? `
+                <div class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-400 mb-2">元数据</h4>
+                  ${metadataHtml}
+                </div>
+              ` : ''}
+            </div>
+          `}
+          
+          <!-- Footer -->
+          <div class="flex items-center justify-between text-sm text-gray-500 p-6 border-t border-glass-border">
+            <div>
+              <span>创建: ${formatDate(item.created_at)}</span>
+              <span class="mx-2">|</span>
+              <span>更新: ${formatDate(item.updated_at)}</span>
+            </div>
+            <div>
+              <span>${item.source_system || '-'}</span>
+              <span class="mx-1">/</span>
+              <span>${item.source_agent || '-'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function switchDetailTab(tab) {
+      const detailTab = document.getElementById('tabDetail');
+      const timelineTab = document.getElementById('tabTimeline');
+      const detailContent = document.getElementById('tabContentDetail');
+      const timelineContent = document.getElementById('tabContentTimeline');
+      
+      if (tab === 'detail') {
+        detailTab.classList.add('text-accent-blue', 'border-b-2', 'border-accent-blue');
+        detailTab.classList.remove('text-gray-500');
+        timelineTab.classList.remove('text-accent-blue', 'border-b-2', 'border-accent-blue');
+        timelineTab.classList.add('text-gray-500');
+        detailContent.classList.remove('hidden');
+        timelineContent.classList.add('hidden');
+      } else {
+        timelineTab.classList.add('text-accent-blue', 'border-b-2', 'border-accent-blue');
+        timelineTab.classList.remove('text-gray-500');
+        detailTab.classList.remove('text-accent-blue', 'border-b-2', 'border-accent-blue');
+        detailTab.classList.add('text-gray-500');
+        timelineContent.classList.remove('hidden');
+        detailContent.classList.add('hidden');
+      }
+    }
+    
+    // ============================================
+    // Form Components
+    // ============================================
+    
+    const TYPE_OPTIONS = [
+      { value: 'news', label: '新闻' },
+      { value: 'memory', label: '记忆' },
+      { value: 'note', label: '笔记' },
+      { value: 'decision', label: '决策' },
+      { value: 'tracking', label: '追踪' },
+      { value: 'task', label: '任务' },
+      { value: 'insight', label: '洞察' },
+      { value: 'brief', label: '简报' },
+      { value: 'log', label: '日志' },
+      { value: 'code', label: '代码' },
+      { value: 'bookmark', label: '书签' },
+    ];
+    
+    const SOURCE_OPTIONS = [
+      { value: 'picoclaw', label: 'picoclaw' },
+      { value: 'opencode', label: 'opencode' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'manual', label: 'manual' },
+    ];
+    
+    const STATUS_OPTIONS = [
+      { value: 'active', label: 'active' },
+      { value: 'archived', label: 'archived' },
+    ];
+    
+    function renderForm(item = null) {
+      const isEdit = !!item;
+      const tagsStr = item?.tags?.map(t => typeof t === 'string' ? t : t.name).join(', ') || '';
+      const metadataStr = item?.metadata ? JSON.stringify(item.metadata, null, 2) : '';
+      
+      return `
+        <form id="itemForm" class="p-6">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold">${isEdit ? '编辑' : '新建'} Item</h2>
+            <button type="button" onclick="closeModal()" class="p-2 hover:bg-bg-elevated rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          ${isEdit ? `<input type="hidden" id="formId" value="${item.id}">` : ''}
+          
+          <!-- Basic Info -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">基本信息</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Type -->
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">类型 <span class="text-accent-red">*</span></label>
+                <select id="formType" required class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue">
+                  ${TYPE_OPTIONS.map(opt => `<option value="${opt.value}" ${item?.type === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                </select>
+              </div>
+              
+              <!-- Title -->
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">标题 <span class="text-accent-red">*</span></label>
+                <input type="text" id="formTitle" required value="${item?.title || ''}" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="输入标题...">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Source Info -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">来源信息</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Source System -->
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">来源系统 <span class="text-accent-red">*</span></label>
+                <div class="flex gap-2">
+                  <select id="formSourceSystemSelect" class="flex-1 bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue">
+                    ${SOURCE_OPTIONS.map(opt => `<option value="${opt.value}" ${item?.source_system === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                    <option value="_custom" ${item?.source_system && !SOURCE_OPTIONS.find(o => o.value === item.source_system) ? 'selected' : ''}>自定义...</option>
+                  </select>
+                  <input type="text" id="formSourceSystemCustom" value="${item?.source_system && !SOURCE_OPTIONS.find(o => o.value === item.source_system) ? item.source_system : ''}" class="hidden flex-1 bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="自定义来源">
+                </div>
+              </div>
+              
+              <!-- Source Agent -->
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">来源 Agent</label>
+                <input type="text" id="formSourceAgent" value="${item?.source_agent || ''}" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="可选">
+              </div>
+              
+              <!-- Source URL -->
+              <div class="md:col-span-2">
+                <label class="block text-sm text-gray-400 mb-1">原始 URL</label>
+                <input type="url" id="formSourceUrl" value="${item?.source_url || ''}" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="https://...">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Content -->
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-400 mb-3">内容</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">内容</label>
+                <textarea id="formContent" rows="4" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue resize-none" placeholder="输入内容...">${item?.content || ''}</textarea>
+              </div>
+              
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">摘要</label>
+                <input type="text" id="formSummary" value="${item?.summary || ''}" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="简短摘要">
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm text-gray-400 mb-1">标签</label>
+                  <input type="text" id="formTags" value="${tagsStr}" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue" placeholder="标签1, 标签2, ...">
+                </div>
+                
+                <div>
+                  <label class="block text-sm text-gray-400 mb-1">优先级</label>
+                  <input type="number" id="formPriority" value="${item?.priority ?? 0}" min="0" max="10" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue">
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">状态</label>
+                <select id="formStatus" class="w-full md:w-1/2 bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue">
+                  ${STATUS_OPTIONS.map(opt => `<option value="${opt.value}" ${item?.status === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Advanced Options -->
+          <div class="mb-6">
+            <button type="button" id="toggleAdvanced" class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors">
+              <svg class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+              <span>高级选项</span>
+            </button>
+            <div id="advancedOptions" class="hidden mt-4">
+              <label class="block text-sm text-gray-400 mb-1">元数据 (JSON)</label>
+              <textarea id="formMetadata" rows="4" class="w-full bg-bg-elevated border border-glass-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-blue resize-none font-mono" placeholder='{"key": "value"}'>${metadataStr}</textarea>
+            </div>
+          </div>
+          
+          <!-- Actions -->
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-glass-border">
+            <button type="button" onclick="closeModal()" class="glass px-4 py-2 rounded-lg text-sm hover:bg-bg-elevated transition-colors">
+              取消
+            </button>
+            <button type="submit" class="btn-primary bg-accent-blue hover:bg-blue-600 px-6 py-2 rounded-lg text-sm font-medium">
+              ${isEdit ? '保存' : '创建'}
+            </button>
+          </div>
+        </form>
+      `;
+    }
+    
+    function initFormEvents() {
+      // Source system select/custom toggle
+      const select = document.getElementById('formSourceSystemSelect');
+      const customInput = document.getElementById('formSourceSystemCustom');
+      
+      select.addEventListener('change', () => {
+        if (select.value === '_custom') {
+          customInput.classList.remove('hidden');
+          customInput.required = true;
+          customInput.focus();
+        } else {
+          customInput.classList.add('hidden');
+          customInput.required = false;
+        }
+      });
+      
+      // Advanced options toggle
+      const toggleBtn = document.getElementById('toggleAdvanced');
+      const advancedDiv = document.getElementById('advancedOptions');
+      const arrow = toggleBtn.querySelector('svg');
+      
+      toggleBtn.addEventListener('click', () => {
+        advancedDiv.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-180');
+      });
+      
+      // Form submit
+      document.getElementById('itemForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleFormSubmit();
+      });
+    }
+    
+    async function handleFormSubmit() {
+      const formId = document.getElementById('formId')?.value;
+      const isEdit = !!formId;
+      
+      // Get form values
+      const sourceSystemSelect = document.getElementById('formSourceSystemSelect').value;
+      const sourceSystemCustom = document.getElementById('formSourceSystemCustom').value;
+      const sourceSystem = sourceSystemSelect === '_custom' ? sourceSystemCustom : sourceSystemSelect;
+      
+      const tagsStr = document.getElementById('formTags').value.trim();
+      const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : [];
+      
+      const metadataStr = document.getElementById('formMetadata')?.value.trim();
+      let metadata = null;
+      if (metadataStr) {
+        try {
+          metadata = JSON.parse(metadataStr);
+        } catch (e) {
+          showToast('元数据 JSON 格式错误', 'error');
+          return;
+        }
+      }
+      
+      const data = {
+        type: document.getElementById('formType').value,
+        title: document.getElementById('formTitle').value.trim(),
+        source_system: sourceSystem,
+        source_agent: document.getElementById('formSourceAgent').value.trim() || undefined,
+        source_url: document.getElementById('formSourceUrl').value.trim() || undefined,
+        content: document.getElementById('formContent').value.trim() || undefined,
+        summary: document.getElementById('formSummary').value.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        priority: parseInt(document.getElementById('formPriority').value) || 0,
+        status: document.getElementById('formStatus').value,
+        metadata: metadata,
+      };
+      
+      // Remove undefined values
+      Object.keys(data).forEach(key => {
+        if (data[key] === undefined) delete data[key];
+      });
+      
+      try {
+        if (isEdit) {
+          await API.updateItem(formId, data);
+        } else {
+          await API.createItem(data);
+        }
+        
+        closeModal();
+        loadStats();
+        loadItems();
+        showToast(isEdit ? '保存成功' : '创建成功', 'success');
+      } catch (error) {
+        console.error('Failed to save item:', error);
+        showToast('保存失败: ' + error.message, 'error');
+      }
+    }
+    
+    function showNewForm() {
+      document.getElementById('modalContent').innerHTML = renderForm();
+      initFormEvents();
+      document.getElementById('modal').classList.remove('hidden');
+    }
+    
+    async function editItem(id) {
+      try {
+        const item = await API.getItem(id);
+        document.getElementById('modalContent').innerHTML = renderForm(item);
+        initFormEvents();
+      } catch (error) {
+        console.error('Failed to load item for edit:', error);
+        showToast('加载失败', 'error');
+      }
+    }
+    
+    async function deleteItem(id) {
+      const confirmed = await showConfirm(
+        '确认删除',
+        '此操作将软删除该数据，可在"已删除"状态中恢复。确定要继续吗？',
+        '确认删除',
+        true
+      );
+      if (!confirmed) return;
+      
+      try {
+        await API.deleteItem(id);
+        closeModal();
+        loadStats();
+        loadItems();
+        showToast('删除成功', 'success');
+      } catch (error) {
+        console.error('Failed to delete item:', error);
+        showToast('删除失败: ' + error.message, 'error');
+      }
+    }
+    
+    // ============================================
+    // Helpers
+    // ============================================
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    function formatKey(key) {
+      return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    
+    function debounce(fn, delay) {
+      let timer;
+      return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+    
+    // ============================================
+    // Event Listeners
+    // ============================================
+    
+    document.getElementById('searchInput').addEventListener('input', debounce((e) => {
+      state.filters.q = e.target.value;
+      loadItems();
+    }, 300));
+    
+    document.getElementById('sortSelect').addEventListener('change', (e) => {
+      const [field, order] = e.target.value.split('-');
+      state.sort.field = field;
+      state.sort.order = order;
+      loadItems();
+    });
+    
+    document.getElementById('loadMore').addEventListener('click', () => {
+      loadItems(true);
+    });
+    
+    document.getElementById('newItemBtn').addEventListener('click', () => {
+      showNewForm();
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    // ============================================
+    // Initialize
+    // ============================================
+    
+    loadStats();
+    loadItems();
+  </script>
 </body>
 </html>

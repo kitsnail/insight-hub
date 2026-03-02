@@ -36,6 +36,8 @@ func (h *HandlerV3) RegisterRoutes(mux *http.ServeMux) {
 
 	// 批量操作
 	mux.HandleFunc("POST /api/v1/items/batch", h.BatchCreateItems)
+	mux.HandleFunc("POST /api/v1/items/batch-delete", h.BatchDeleteItems)
+	mux.HandleFunc("POST /api/v1/items/batch-update-status", h.BatchUpdateStatus)
 
 	// Stats
 	mux.HandleFunc("GET /api/v1/stats", h.GetStats)
@@ -322,6 +324,69 @@ func (h *HandlerV3) GetStatsBySource(w http.ResponseWriter, r *http.Request) {
 	h.json(w, http.StatusOK, map[string]interface{}{
 		"by_source": counts,
 	})
+}
+
+// ========== 批量操作 ==========
+
+// BatchDeleteItems 批量删除
+// POST /api/v1/items/batch-delete
+func (h *HandlerV3) BatchDeleteItems(w http.ResponseWriter, r *http.Request) {
+	var req model.BatchDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		h.error(w, http.StatusBadRequest, "ids array is empty")
+		return
+	}
+
+	if len(req.IDs) > 100 {
+		h.error(w, http.StatusBadRequest, "maximum 100 items per batch")
+		return
+	}
+
+	resp, err := h.itemRepo.BatchDelete(r.Context(), req.IDs)
+	if err != nil {
+		h.error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	h.json(w, http.StatusOK, resp)
+}
+
+// BatchUpdateStatus 批量更新状态
+// POST /api/v1/items/batch-update-status
+func (h *HandlerV3) BatchUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	var req model.BatchUpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		h.error(w, http.StatusBadRequest, "ids array is empty")
+		return
+	}
+
+	if len(req.IDs) > 100 {
+		h.error(w, http.StatusBadRequest, "maximum 100 items per batch")
+		return
+	}
+
+	if req.Status == "" {
+		h.error(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	resp, err := h.itemRepo.BatchUpdateStatus(r.Context(), req.IDs, req.Status)
+	if err != nil {
+		h.error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	h.json(w, http.StatusOK, resp)
 }
 
 // ========== Health ==========

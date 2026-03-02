@@ -496,3 +496,16 @@ web/
 **设计文档版本**: v2.0
 **创建日期**: 2026-03-01
 **参考规范**: ui-ux-pro-max skill
+
+
+
+
+curl -X POST https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer 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" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "z-ai/glm-5",
+    "messages": [
+      {"role": "user", "content": "Hello, world!"}
+    ]
+  }'

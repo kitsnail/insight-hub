@@ -22,6 +22,32 @@ var (
 	date    = "unknown"
 )
 
+// loggingMiddleware 请求日志中间件
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		
+		// 包装 ResponseWriter 以捕获状态码
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		
+		next.ServeHTTP(wrapped, r)
+		
+		duration := time.Since(start)
+		log.Printf("[%s] %s %s %d %v", r.Method, r.URL.Path, r.URL.RawQuery, wrapped.statusCode, duration)
+	})
+}
+
+// responseWriter 包装 http.ResponseWriter 以捕获状态码
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func main() {
 	// 命令行参数
 	configPath := flag.String("config", "", "配置文件路径")
@@ -70,6 +96,9 @@ func main() {
 	handlerV3 := api.NewHandlerV3(itemRepo)
 	handlerV3.RegisterRoutes(mux)
 
+	// 请求日志中间件
+	loggedMux := loggingMiddleware(mux)
+
 	// 注册 v2 API (兼容旧版)
 	handler := api.NewHandler(itemRepo, tagRepo, taskRepo)
 	handler.RegisterRoutes(mux)
@@ -90,7 +119,7 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: loggedMux,
 	}
 
 	// 优雅关闭
